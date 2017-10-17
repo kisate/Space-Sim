@@ -12,10 +12,10 @@ import numpy
 from body import Body
 import values
 import random
-t = 1800
+t = 60
 g = constants.value('Newtonian constant of gravitation')/1000**2
 tick = 0.010
-x = 40
+x = 35
 def getforce (o2, o1) :
 	k = o1.mass*o2.mass*g
 	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
@@ -87,6 +87,9 @@ class Test(ShowBase) :
 		self.addPlanet('neptune')
 		self.bodies[-1].setPos(numpy.array([0, 4.5e+10, 0]), scale)
 		self.bodies[-1].v = numpy.array([5.4*x, 0 ,0])
+		self.addPlanet('moon')
+		self.bodies[-1].setPos(numpy.array([384399, 150000000, 0]), scale)
+		self.bodies[-1].v = numpy.array([30*x, 1*x ,0])
 		for o in self.bodies :
 			o.lines.moveTo(o.node.getPos())
 		
@@ -107,7 +110,7 @@ class Test(ShowBase) :
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']/scale*100
+		r = values.values[name]['r']/scale*1
 		planet.setSx(r)
 		planet.setSy(r)
 		planet.setSz(r)
