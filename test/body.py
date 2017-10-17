@@ -1,11 +1,12 @@
 import numpy
 from panda3d.core import Geom
 class Body :
-	def __init__ (self, n, m, v = numpy.array([0,0,0]), p = numpy.array([0,0,0])) :
+	def __init__ (self, n, m, v = numpy.array([0,0,0]), p = numpy.array([0,0,0]), av = numpy.array([0,0,0])) :
 		self.mass = m
 		self.node = n
 		self.v = v
 		self.pos = p
+		self.av = av
 	
 	def setPos (self, p, scale) :
 		self.pos = p

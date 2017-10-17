@@ -11,6 +11,7 @@ from scipy import constants
 import numpy
 from body import Body
 import values
+import random
 t = 1800
 g = constants.value('Newtonian constant of gravitation')/1000**2
 tick = 0.010
@@ -30,13 +31,14 @@ class Test(ShowBase) :
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
 		self.loadModels()
-		camera.reparentTo(self.bodies[0].node)
-		camera.lookAt(self.bodies[0].node)
+		camera.reparentTo(self.bodies[3].node)
+		camera.lookAt(self.bodies[3].node)
 		base.camLens.setFov(1000000000*100)
 		self.setUpLights()
 		m = Material()
 		m.setEmission((1,1,1,1))
 		self.bodies[0].node.setMaterial(m)
+		NodePath(self.gNode).setMaterial(m)
 		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
 	
 	def spinCameraTask(self, task):
@@ -46,18 +48,14 @@ class Test(ShowBase) :
 		
 	def physTask(self, task) :
 		for o in self.bodies :
-			vdata = o.vdata
-			vertex = GeomVertexWriter(vdata, 'vertex')
-			vertex.setRow(o.row)
-			color = GeomVertexWriter(vdata, 'color')
-			color.setRow(o.row)
-			pos = o.node.getPos()
-			vertex.addData3f(pos[0], pos[1], pos[2])
-			color.addData4f(1, 0.5, 0.5, 1)
-			o.prim.addVertex(o.row)
-			vertex.setRow(-1)
 			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0), scale)
-			print(o.v)
+			o.lines.drawTo(o.node.getPos())
+			if (o.lines.getNumVertices() > 200) :
+				del o.lines.getVertices()[0] 
+			o.lines.create(self.gNode)
+			thpr = o.node.getHpr()
+			hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
+			o.node.setHpr(hpr[0], hpr[1], hpr[2])
 			for o2 in self.bodies :
 				if o2 != o :
 					f = getforce(o2, o)
@@ -76,6 +74,7 @@ class Test(ShowBase) :
 		self.addPlanet('earth')
 		self.bodies[-1].setPos(numpy.array([0, 150000000, 0]), scale)
 		self.bodies[-1].v = numpy.array([30*x, 0 ,0])
+		self.bodies[-1].av = numpy.array([0,0,0])
 		self.addPlanet('mars')
 		self.bodies[-1].setPos(numpy.array([0, 2.3e+8, 0]), scale)
 		self.bodies[-1].v = numpy.array([24*x, 0 ,0])
@@ -88,6 +87,8 @@ class Test(ShowBase) :
 		self.addPlanet('neptune')
 		self.bodies[-1].setPos(numpy.array([0, 4.5e+10, 0]), scale)
 		self.bodies[-1].v = numpy.array([5.4*x, 0 ,0])
+		for o in self.bodies :
+			o.lines.moveTo(o.node.getPos())
 		
 	def setUpLights(self) : 
 		plight = PointLight('plight')
@@ -106,18 +107,15 @@ class Test(ShowBase) :
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']/scale*300
+		r = values.values[name]['r']/scale*100
 		planet.setSx(r)
 		planet.setSy(r)
 		planet.setSz(r)
 		body = Body(planet, values.values[name]['m'])
-		vdata = GeomVertexData(name, GeomVertexFormat.getV3c4(), Geom.UHDynamic)
-		vdata.setNumRows(10000)
-		prim = GeomLinestrips(Geom.UHDynamic)
-		geom = Geom(vdata)
-		geom.addPrimitive(prim)
-		body.setGeom(geom, vdata, prim)
-		self.gNode.addGeom(geom)
+		lines = LineSegs()
+		lines.setThickness(1)
+		lines.setColor(1, 0.4, 0.4, 1)
+		body.setLineS(lines)
 		planet.reparentTo(render)
 		self.bodies.append(body)
 		
