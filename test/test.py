@@ -12,10 +12,11 @@ import numpy
 from body import Body
 import values
 import random
-t = 60
+t = 3600
 g = constants.value('Newtonian constant of gravitation')/1000**2
 tick = 0.010
 x = 35
+geoms = 600
 def getforce (o2, o1) :
 	k = o1.mass*o2.mass*g
 	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
@@ -31,7 +32,7 @@ class Test(ShowBase) :
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
 		self.loadModels()
-		camera.reparentTo(self.bodies[3].node)
+		camera.reparentTo(self.bodies[7].node)
 		camera.lookAt(self.bodies[3].node)
 		base.camLens.setFov(1000000000*100)
 		self.setUpLights()
@@ -52,7 +53,10 @@ class Test(ShowBase) :
 			o.lines.drawTo(o.node.getPos())
 			if (o.lines.getNumVertices() > 200) :
 				del o.lines.getVertices()[0] 
-			o.lines.create(self.gNode)
+			o.lines.create(o.gNode)
+			if (len(o.gNode.getGeoms()) > geoms) :
+				o.gNode.removeGeom(0)
+			print(len(o.gNode.getGeoms()))
 			thpr = o.node.getHpr()
 			hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
 			o.node.setHpr(hpr[0], hpr[1], hpr[2])
@@ -110,15 +114,19 @@ class Test(ShowBase) :
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']/scale*1
+		r = values.values[name]['r']/scale*100
 		planet.setSx(r)
 		planet.setSy(r)
 		planet.setSz(r)
 		body = Body(planet, values.values[name]['m'])
 		lines = LineSegs()
 		lines.setThickness(1)
-		lines.setColor(1, 0.4, 0.4, 1)
-		body.setLineS(lines)
+		gn = lines.create()
+		m = Material()
+		m.setEmission((1,0.4,0.4,1))
+		NodePath(gn).setMaterial(m)
+		NodePath(gn).reparentTo(render)
+		body.setTrail(lines, gn)
 		planet.reparentTo(render)
 		self.bodies.append(body)
 		

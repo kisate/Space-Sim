@@ -12,5 +12,6 @@ class Body :
 		self.pos = p
 		self.node.setPos(p[0]/scale,p[1]/scale,p[2]/scale)
 		
-	def setLineS(self, ls) : 
+	def setTrail(self, ls, gn) : 
 		self.lines = ls
+		self.gNode = gn
