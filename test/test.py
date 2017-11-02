@@ -7,13 +7,12 @@ from direct.gui.OnscreenImage import OnscreenImage
 from panda3d.core import GeomVertexFormat, GeomVertexData, Geom, GeomNode, GeomLinestrips
 from panda3d.core import Material
 from math import pi, sin, cos
-from scipy import constants
 import numpy
 from body import Body
 import values
 import random
-t = 3600
-g = constants.value('Newtonian constant of gravitation')/1000**2
+t = 600
+g = 6.67408e-11/1000**2
 tick = 0.010
 x = 35
 geoms = 600
@@ -32,7 +31,7 @@ class Test(ShowBase) :
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
 		self.loadModels()
-		camera.reparentTo(self.bodies[7].node)
+		camera.reparentTo(self.bodies[3].node)
 		camera.lookAt(self.bodies[3].node)
 		base.camLens.setFov(1000000000*100)
 		self.setUpLights()
@@ -114,7 +113,7 @@ class Test(ShowBase) :
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']/scale*100
+		r = values.values[name]['r']/scale
 		planet.setSx(r)
 		planet.setSy(r)
 		planet.setSz(r)
