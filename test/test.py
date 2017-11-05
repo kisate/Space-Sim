@@ -6,14 +6,16 @@ from direct.task import Task
 from direct.gui.OnscreenImage import OnscreenImage
 from panda3d.core import GeomVertexFormat, GeomVertexData, Geom, GeomNode, GeomLinestrips
 from panda3d.core import Material
+from direct.gui.OnscreenText import OnscreenText
 from math import pi, sin, cos
 import numpy
 from body import Body
 import values
 import random
+import sys
 t = 600
 g = 6.67408e-17
-tick = 0.010
+tick = 0.003
 x = 35
 scale = 1
 geoms = 600
@@ -31,15 +33,17 @@ class Test(ShowBase) :
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
 		self.loadModels()
-		camera.reparentTo(self.bodies[3].node)
-		camera.lookAt(self.bodies[3].node)
-		base.camLens.setFov(1000000000*100)
 		self.setUpLights()
 		m = Material()
 		m.setEmission((1,1,1,1))
 		self.bodies[0].node.setMaterial(m)
 		NodePath(self.gNode).setMaterial(m)
 		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
+		camera.reparentTo(self.bodies[3].node)
+		camera.lookAt(self.bodies[3].node)
+		base.camLens.setFov(1000000000*100)
+		self.initText()
+		self.setUpKeys()
 	
 	def physTask(self, task) :
 		for o in self.bodies :
@@ -86,6 +90,25 @@ class Test(ShowBase) :
 		self.cameraSelection = 0
 		self.lightSelection = 0
 		
+	def initText(self) :
+		self.speedText = OnscreenText(text = '600 seconds per tick [+/-]', pos = (-0.9, 0.9), scale = 0.07, fg = (1,1,1,1))
+		
+	def setUpKeys(self) :
+	
+		self.keys = {"inc", "dec"}
+		self.accept("escape", sys.exit)
+		self.accept("+", self.incSpeed)
+		self.accept("-", self.decSpeed)
+
+	def incSpeed(self) :
+		global t
+		t+= 20
+		self.speedText.setText('{0} seconds per tick [+/-]'.format(t))
+	def decSpeed(self) :
+		global t
+		t-= 20
+		self.speedText.setText('{0} seconds per tick [+/-]'.format(t))
+	
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
