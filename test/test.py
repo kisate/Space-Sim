@@ -17,8 +17,8 @@ t = 600
 g = 6.67408e-17
 tick = 0.003
 x = 35
-scale = 1
 geoms = 600
+scale = 1
 def getforce (o2, o1) :
 	k = o1.mass*o2.mass*g
 	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
@@ -92,6 +92,7 @@ class Test(ShowBase) :
 		
 	def initText(self) :
 		self.speedText = OnscreenText(text = '600 seconds per tick [+/-]', pos = (-0.9, 0.9), scale = 0.07, fg = (1,1,1,1))
+		self.scaleText = OnscreenText(text = 'scale : 1 [Z/X]', pos = (-0.9, 0.8), scale = 0.07, fg = (1,1,1,1))
 		
 	def setUpKeys(self) :
 	
@@ -99,23 +100,41 @@ class Test(ShowBase) :
 		self.accept("escape", sys.exit)
 		self.accept("+", self.incSpeed)
 		self.accept("-", self.decSpeed)
+		self.accept("z", self.incScale)
+		self.accept("x", self.decScale)
 
 	def incSpeed(self) :
 		global t
 		t+= 20
 		self.speedText.setText('{0} seconds per tick [+/-]'.format(t))
+		
 	def decSpeed(self) :
 		global t
 		t-= 20
 		self.speedText.setText('{0} seconds per tick [+/-]'.format(t))
+		
+	def incScale(self) : 
+		factor = 3
+		global scale 
+		scale*= factor
+		self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
+		
+		for b in self.bodies :
+			b.node.setScale(b.node.getScale()[0]*factor)
+		
+	def decScale(self) : 
+		factor = 3
+		global scale 
+		scale//= factor
+		self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
+		for b in self.bodies :
+			b.node.setScale(b.node.getScale()[0]//factor)
 	
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']*scale
-		planet.setSx(r)
-		planet.setSy(r)
-		planet.setSz(r)
+		r = values.values[name]['r']
+		planet.setScale(r)
 		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']))
 		lines = LineSegs()
 		lines.setThickness(1)
