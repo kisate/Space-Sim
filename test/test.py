@@ -12,16 +12,16 @@ from body import Body
 import values
 import random
 t = 600
-g = 6.67408e-11/1000**2
+g = 6.67408e-17
 tick = 0.010
 x = 35
+scale = 1
 geoms = 600
 def getforce (o2, o1) :
 	k = o1.mass*o2.mass*g
 	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
 	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
 
-scale = 10000
 class Test(ShowBase) :
 	def __init__ (self):
 		ShowBase.__init__(self)
@@ -41,21 +41,13 @@ class Test(ShowBase) :
 		NodePath(self.gNode).setMaterial(m)
 		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
 	
-	def spinCameraTask(self, task):
-		angleDegrees = task.time * 24.0
-		self.camera.setHpr(angleDegrees, 0, 0)
-		return Task.cont
-		
 	def physTask(self, task) :
 		for o in self.bodies :
-			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0), scale)
+			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
 			o.lines.drawTo(o.node.getPos())
-			if (o.lines.getNumVertices() > 200) :
-				del o.lines.getVertices()[0] 
 			o.lines.create(o.gNode)
 			if (len(o.gNode.getGeoms()) > geoms) :
 				o.gNode.removeGeom(0)
-			print(len(o.gNode.getGeoms()))
 			thpr = o.node.getHpr()
 			hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
 			o.node.setHpr(hpr[0], hpr[1], hpr[2])
@@ -69,30 +61,14 @@ class Test(ShowBase) :
 	def loadModels(self) : 
 		self.addPlanet('sun')
 		self.addPlanet('mercury')
-		self.bodies[-1].setPos(numpy.array([0,57909227,0]), scale)
-		self.bodies[-1].v = numpy.array([50*x, 0 ,0])
 		self.addPlanet('venus')
-		self.bodies[-1].setPos(numpy.array([0, 108942109, 0]), scale)
-		self.bodies[-1].v = numpy.array([35*x, 0 ,0])
 		self.addPlanet('earth')
-		self.bodies[-1].setPos(numpy.array([0, 150000000, 0]), scale)
-		self.bodies[-1].v = numpy.array([30*x, 0 ,0])
-		self.bodies[-1].av = numpy.array([0,0,0])
 		self.addPlanet('mars')
-		self.bodies[-1].setPos(numpy.array([0, 2.3e+8, 0]), scale)
-		self.bodies[-1].v = numpy.array([24*x, 0 ,0])
 		self.addPlanet('jupiter')
-		self.bodies[-1].setPos(numpy.array([0, 7.79e+8, 0]), scale)
-		self.bodies[-1].v = numpy.array([13*x, 0 ,0])
+		self.addPlanet('saturn')
 		self.addPlanet('uranus')
-		self.bodies[-1].setPos(numpy.array([0, 2.9e+10, 0]), scale)
-		self.bodies[-1].v = numpy.array([6.8*x, 0 ,0])
 		self.addPlanet('neptune')
-		self.bodies[-1].setPos(numpy.array([0, 4.5e+10, 0]), scale)
-		self.bodies[-1].v = numpy.array([5.4*x, 0 ,0])
 		self.addPlanet('moon')
-		self.bodies[-1].setPos(numpy.array([384399, 150000000, 0]), scale)
-		self.bodies[-1].v = numpy.array([30*x, 1*x ,0])
 		for o in self.bodies :
 			o.lines.moveTo(o.node.getPos())
 		
@@ -113,16 +89,16 @@ class Test(ShowBase) :
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']/scale
+		r = values.values[name]['r']*scale
 		planet.setSx(r)
 		planet.setSy(r)
 		planet.setSz(r)
-		body = Body(planet, values.values[name]['m'])
+		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']))
 		lines = LineSegs()
 		lines.setThickness(1)
 		gn = lines.create()
 		m = Material()
-		m.setEmission((1,0.4,0.4,1))
+		m.setEmission((random.random() ,random.random() ,random.random() ,1))
 		NodePath(gn).setMaterial(m)
 		NodePath(gn).reparentTo(render)
 		body.setTrail(lines, gn)
