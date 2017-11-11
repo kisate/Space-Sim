@@ -19,7 +19,7 @@ import random
 import sys
 t = 600
 g = 6.67408e-17
-tick = 0.003
+tick = 1/60
 x = 35
 geoms = 600
 fov = 100
@@ -56,7 +56,9 @@ class Test(ShowBase) :
 		base.camLens.setFov(100)
 		base.cam.node().getDisplayRegion(0).setSort(20)
 		self.cameraNode.reparentTo(self.bodies[0].node)
+		self.cameraNode.lookAt(self.bodies[0].node)
 		self.cameraNode.setCompass(render)
+		self.curPlanet = 0
 	
 	def physTask(self, task) :
 		for o in self.bodies :
@@ -86,14 +88,18 @@ class Test(ShowBase) :
 		parent = self.cameraNode.getParent()
 		if self.keys['fwd'] == 1:
 			camera.setY(camera, 0.1)
+			log.info(camera.getPos(render))
 		if self.keys['bwd'] == 1:
 			camera.setY(camera, -0.1)
+			log.info(camera.getPos(render))
 			
 		if self.keys['lft'] == 1:
 			camera.setX(camera, -0.1)
+			self.detachCamera()
 		if self.keys['rt'] == 1:
-			camera.setX(camera, 0.1)	
-		
+			camera.setX(camera, 0.1)
+			self.detachCamera()
+
 		return Task.cont
 	
 	def loadModels(self) : 
@@ -103,7 +109,7 @@ class Test(ShowBase) :
 		
 	def setUpLights(self) : 
 		plight = PointLight('plight')
-		plight.setColor(VBase4(3, 3, 3, 1))
+		plight.setColor(VBase4( 3, 3, 3, 1))
 		plnp = render.attachNewNode(plight)
 		plnp.setPos(0, 0, 0)
 		render.setLight(plnp)
@@ -127,6 +133,7 @@ class Test(ShowBase) :
 		self.accept("-", self.decSpeed)
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
+		self.accept('r', self.resetCam)
 
 		self.accept('arrow_up', self.setKey, ['fovdown', 1])
 		self.accept('arrow_up-up', self.setKey, ['fovdown', 0])
@@ -141,24 +148,61 @@ class Test(ShowBase) :
 		self.accept('d-up', self.setKey, ['rt', 0])
 		self.accept('a', self.setKey, ['lft', 1])
 		self.accept('a-up', self.setKey, ['lft', 0])
-		
+		self.accept('o', self.prevPlanet)
+		self.accept('p', self.nextPlanet)
 		self.setUpMouse()
+	
 	
 	def setKey(self, key, val) :
 		self.keys[key] = val
 	
+	def resetCam(self) :
+		self.attachCam(self.bodies[self.curPlanet].node)
+	
+	def attachCam(self, node) :
+		self.detached = False
+		self.cameraNode.reparentTo(node)
+		self.camera.lookAt(node)
+		self.cameraNode.lookAt(node)
+		self.rotateX = self.cameraNode.getH()
+		self.rotateY = self.cameraNode.getP()
+		log.info(self.cameraNode.getPos(render))
+		log.info(node.getPos(render))
+	
+	def nextPlanet(self) :
+		if self.curPlanet < len(self.bodies) - 1 :
+			self.curPlanet += 1
+			self.attachCam(self.bodies[self.curPlanet].node)
+			self.cameraNode.setPos(0,0,0)
+			log.info(camera.getPos(render))
+			camera.setPos(0,0,0)
+			log.info(camera.getPos(render))
+			
+	def prevPlanet(self) :
+		if self.curPlanet > 0 :
+			self.curPlanet -= 1
+			self.attachCam(self.bodies[self.curPlanet].node)
+			self.cameraNode.setPos(0,0,0)
+			
 	def setUpMouse(self) :
 
 		self.disableMouse()
 
 		self.mouseMagnitude = 3
 
-		self.rotateX, self.rotateY = 0, 0
+		self.rotateX, self.rotateY, self.rotateXd, self.rotateYd = 0, 0, 0, 0
 
 		self.lastMouseX, self.lastMouseY = None, None
 
 		taskMgr.add(self.mouseTask, "Mouse Task")
-
+		self.scrolling = False
+		self.detached = False
+	
+	def detachCamera(self):
+		self.detached = True
+		self.rotateXd = camera.getH()
+		self.rotateYd = camera.getP()
+	
 	def mouseTask (self, task):
 		mw = base.mouseWatcherNode
 		wp = WindowProperties()
@@ -166,6 +210,11 @@ class Test(ShowBase) :
 		hasMouse = mw.hasMouse() 
 		if hasMouse and mw.is_button_down(MouseButton.one()):
 			x, y = mw.getMouseX(), mw.getMouseY()
+			
+			if not self.scrolling :
+					self.lastMouseX, self.lastMouseY = x, y
+					self.scrolling = True
+			
 			if self.lastMouseX is not None:
 				
 				dx, dy = x - self.lastMouseX, y - self.lastMouseY
@@ -177,12 +226,20 @@ class Test(ShowBase) :
 			
 		else:
 			x, y, dx, dy, self.lastMouseX, self.lastMouseY = 0, 0, 0, 0, 0, 0
+			self.scrolling = False
+		
+		if self.detached and self.scrolling :
+			self.rotateXd += dx * 10 * self.mouseMagnitude
+			self.rotateYd -= dy * 10 * self.mouseMagnitude
 
-		self.rotateX += dx * 10 * self.mouseMagnitude
-		self.rotateY += dy * 10 * self.mouseMagnitude
+			self.camera.setH(self.rotateXd)
+			self.camera.setP(self.rotateYd)
+		elif not self.detached and self.scrolling :
+			self.rotateX += dx * 10 * self.mouseMagnitude
+			self.rotateY -= dy * 10 * self.mouseMagnitude
 
-		self.cameraNode.setH(self.rotateX)
-		self.cameraNode.setP(self.rotateY)
+			self.cameraNode.setH(self.rotateX)
+			self.cameraNode.setP(self.rotateY)
 		return Task.cont
 
 	def incSpeed(self) :
