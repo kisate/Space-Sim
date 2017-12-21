@@ -81,13 +81,13 @@ class Test(ShowBase) :
 		return Task.again
 		
 	def controllTask(self, task) :
-		global fov
-		if self.keys['fovup'] and fov < 360 :
-			fov+=(180-fov)/100
+		if self.keys['zoomIn'] :
+			d = camera.getDistance(self.cameraNode.parent)
+			camera.setY(camera, d/60.0)
 			base.camLens.setFov(fov)
-		if self.keys['fovdown'] and fov > 0.5 :
-			fov-=(fov)/100
-			base.camLens.setFov(fov)
+		if self.keys['zoomOut'] and fov > 0.5 :
+			d = camera.getDistance(self.cameraNode.parent)
+			camera.setY(camera, -d/60.0)
 		parent = self.cameraNode.getParent()
 		if self.keys['fwd'] == 1:
 			camera.setY(camera, 0.1)
@@ -138,16 +138,16 @@ class Test(ShowBase) :
 		
 	def setUpKeys(self) :
 	
-		self.keys = {'fovup' : 0, 'fovdown' : 0, 'fwd' : 0, 'bwd' : 0, 'lft' : 0, 'rt' : 0, 'incSpeed' : 0, 'decSpeed' : 0}
+		self.keys = {'zoomIn' : 0, 'zoomOut' : 0, 'fwd' : 0, 'bwd' : 0, 'lft' : 0, 'rt' : 0, 'incSpeed' : 0, 'decSpeed' : 0}
 		self.accept("escape", sys.exit)
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
 		self.accept('r', self.resetCam)
 
-		self.accept('arrow_up', self.setKey, ['fovdown', 1])
-		self.accept('arrow_up-up', self.setKey, ['fovdown', 0])
-		self.accept('arrow_down', self.setKey, ['fovup', 1])
-		self.accept('arrow_down-up', self.setKey, ['fovup', 0])
+		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
+		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
+		self.accept('arrow_down', self.setKey, ['zoomOut', 1])
+		self.accept('arrow_down-up', self.setKey, ['zoomOut', 0])
 		
 		self.accept("+", self.setKey, ['incSpeed', 1])
 		self.accept("+-up", self.setKey, ['incSpeed', 0])
@@ -187,13 +187,14 @@ class Test(ShowBase) :
 			self.curPlanet += 1
 			self.attachCam(self.bodies[self.curPlanet].node)
 			self.cameraNode.setPos(0,0,0)
-			camera.setPos(0,0,0)
+			camera.setY(-2)
 			
 	def prevPlanet(self) :
 		if self.curPlanet > 0 :
 			self.curPlanet -= 1
 			self.attachCam(self.bodies[self.curPlanet].node)
 			self.cameraNode.setPos(0,0,0)
+			camera.setY(-2)
 			
 	def setUpMouse(self) :
 
