@@ -45,9 +45,9 @@ class Test(ShowBase) :
 		NodePath(self.gNode).setMaterial(m)
 		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
 		self.taskMgr.add(self.controllTask, 'ControllTask')
+		self.setUpKeys()
 		self.cameraSetup()
 		self.initText()
-		self.setUpKeys()
 		log.info('Loading done')
 	
 	def cameraSetup(self) :
@@ -58,6 +58,9 @@ class Test(ShowBase) :
 		self.cameraNode.reparentTo(self.bodies[0].node)
 		self.cameraNode.lookAt(self.bodies[0].node)
 		self.cameraNode.setCompass(render)
+		camera.setY(-2700);
+		self.cameraNode.setP(90);
+		self.rotateY = 90;
 		self.curPlanet = 0
 	
 	def physTask(self, task) :
@@ -88,10 +91,8 @@ class Test(ShowBase) :
 		parent = self.cameraNode.getParent()
 		if self.keys['fwd'] == 1:
 			camera.setY(camera, 0.1)
-			log.info(camera.getPos(render))
 		if self.keys['bwd'] == 1:
 			camera.setY(camera, -0.1)
-			log.info(camera.getPos(render))
 			
 		if self.keys['lft'] == 1:
 			camera.setX(camera, -0.1)
@@ -99,6 +100,16 @@ class Test(ShowBase) :
 		if self.keys['rt'] == 1:
 			camera.setX(camera, 0.1)
 			self.detachCamera()
+		
+		global t;		
+		
+		if self.keys['incSpeed'] == 1:
+			t*=1.01;
+			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
+			
+		if self.keys['decSpeed'] == 1:
+			t/=1.01;
+			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 
 		return Task.cont
 	
@@ -127,10 +138,8 @@ class Test(ShowBase) :
 		
 	def setUpKeys(self) :
 	
-		self.keys = {'fovup' : 0, 'fovdown' : 0, 'fwd' : 0, 'bwd' : 0, 'lft' : 0, 'rt' : 0}
+		self.keys = {'fovup' : 0, 'fovdown' : 0, 'fwd' : 0, 'bwd' : 0, 'lft' : 0, 'rt' : 0, 'incSpeed' : 0, 'decSpeed' : 0}
 		self.accept("escape", sys.exit)
-		self.accept("+", self.incSpeed)
-		self.accept("-", self.decSpeed)
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
 		self.accept('r', self.resetCam)
@@ -139,6 +148,12 @@ class Test(ShowBase) :
 		self.accept('arrow_up-up', self.setKey, ['fovdown', 0])
 		self.accept('arrow_down', self.setKey, ['fovup', 1])
 		self.accept('arrow_down-up', self.setKey, ['fovup', 0])
+		
+		self.accept("+", self.setKey, ['incSpeed', 1])
+		self.accept("+-up", self.setKey, ['incSpeed', 0])
+		self.accept("-", self.setKey, ['decSpeed', 1])
+		self.accept("--up", self.setKey, ['decSpeed', 0])
+
 		
 		self.accept('w', self.setKey, ['fwd', 1])
 		self.accept('w-up', self.setKey, ['fwd', 0])
@@ -166,17 +181,13 @@ class Test(ShowBase) :
 		self.cameraNode.lookAt(node)
 		self.rotateX = self.cameraNode.getH()
 		self.rotateY = self.cameraNode.getP()
-		log.info(self.cameraNode.getPos(render))
-		log.info(node.getPos(render))
-	
+		
 	def nextPlanet(self) :
 		if self.curPlanet < len(self.bodies) - 1 :
 			self.curPlanet += 1
 			self.attachCam(self.bodies[self.curPlanet].node)
 			self.cameraNode.setPos(0,0,0)
-			log.info(camera.getPos(render))
 			camera.setPos(0,0,0)
-			log.info(camera.getPos(render))
 			
 	def prevPlanet(self) :
 		if self.curPlanet > 0 :
@@ -241,16 +252,6 @@ class Test(ShowBase) :
 			self.cameraNode.setH(self.rotateX)
 			self.cameraNode.setP(self.rotateY)
 		return Task.cont
-
-	def incSpeed(self) :
-		global t
-		t+= 20
-		self.speedText.setText('{0} seconds per tick [+/-]'.format(t))
-		
-	def decSpeed(self) :
-		global t
-		t-= 20
-		self.speedText.setText('{0} seconds per tick [+/-]'.format(t))
 		
 	def incScale(self) : 
 		factor = 3
@@ -258,8 +259,13 @@ class Test(ShowBase) :
 		scale*= factor
 		self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
 		
+		log.info(camera.getPos(render))
+		
 		for b in self.bodies :
 			b.node.setScale(b.node.getScale()[0]*factor)
+			
+		log.info(camera.getPos(render))
+		
 		
 	def decScale(self) : 
 		factor = 3
