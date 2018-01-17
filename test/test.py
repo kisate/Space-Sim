@@ -17,10 +17,9 @@ from body import Body
 import values
 import random
 import sys
-t = 600
-g = 6.67408e-17
-tick = 1/60
-x = 35
+t = 1000
+g = 6.67408e-20
+tick = 1/100
 geoms = 600
 fov = 100
 scale = 1
@@ -133,7 +132,7 @@ class Test(ShowBase) :
 		self.lightSelection = 0
 		
 	def initText(self) :
-		self.speedText = OnscreenText(text = '600 seconds per tick [+/-]', pos = (-0.9, 0.9), scale = 0.07, fg = (1,1,1,1))
+		self.speedText = OnscreenText(text = str(t) + ' seconds per tick [+/-]', pos = (-0.9, 0.9), scale = 0.07, fg = (1,1,1,1))
 		self.scaleText = OnscreenText(text = 'scale : 1 [Z/X]', pos = (-0.9, 0.8), scale = 0.07, fg = (1,1,1,1))
 		
 	def setUpKeys(self) :
@@ -260,12 +259,12 @@ class Test(ShowBase) :
 		scale*= factor
 		self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
 		
-		log.info(camera.getPos(render))
+		pos = camera.getPos(render)
 		
 		for b in self.bodies :
 			b.node.setScale(b.node.getScale()[0]*factor)
 			
-		log.info(camera.getPos(render))
+		camera.setPos(render, pos)
 		
 		
 	def decScale(self) : 
@@ -273,9 +272,14 @@ class Test(ShowBase) :
 		global scale 
 		if scale >= factor :
 			scale//= factor
+			
+			pos = camera.getPos(render)
+			
 			for b in self.bodies :
 				b.node.setScale(b.node.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
+			
+			camera.setPos(render, pos)
 	
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/planet_sphere')
