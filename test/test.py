@@ -65,6 +65,7 @@ class Test(ShowBase) :
 	def physTask(self, task) :
 		for o in self.bodies :
 			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
+			o.lines.moveTo(o.gNode.getGeoms()[-1].getPos())
 			o.lines.drawTo(o.getPos())
 			o.lines.create(o.gNode)
 			if (len(o.gNode.getGeoms()) > geoms) :
@@ -272,6 +273,7 @@ class Test(ShowBase) :
 		global scale 
 		if scale >= factor :
 			scale//= factor
+<<<<<<< HEAD
 			
 			pos = camera.getPos(render)
 			
@@ -279,6 +281,12 @@ class Test(ShowBase) :
 				b.node.setScale(b.node.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
 			
+=======
+			pos = camera.getPos(render)
+			for b in self.bodies :
+				b.node.setScale(b.node.getScale()[0]//factor)
+			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
+>>>>>>> origin/master
 			camera.setPos(render, pos)
 	
 	def addPlanet(self, name):
