@@ -17,11 +17,12 @@ from body import Body
 import values
 import random
 import sys
-t = 1000
+t = 10000
 g = 6.67408e-20
 tick = 1/100
-geoms = 600
+geoms = 1500
 fov = 100
+
 scale = 1
 def getforce (o2, o1) :
 	k = o1.mass*o2.mass*g
@@ -36,7 +37,28 @@ class Test(ShowBase) :
 		self.gNode = GeomNode('gnode')
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
+			
+		
 		self.loadModels()
+		
+		for i in range(geoms):
+			for o in self.bodies :
+                        
+				o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
+				
+				o.wayPoints.append(o.getPos())
+				
+				thpr = o.node.getHpr()
+				hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
+				o.node.setHpr(hpr[0], hpr[1], hpr[2])
+				for o2 in self.bodies :
+					if o2 != o :
+						f = getforce(o2, o)
+						a = numpy.divide(f, o.mass)
+						o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
+			if i % 100 == 0 : log.info(str(i))
+		
+		
 		self.setUpLights()
 		m = Material()
 		m.setEmission((1,1,1,1))
@@ -47,6 +69,11 @@ class Test(ShowBase) :
 		self.setUpKeys()
 		self.cameraSetup()
 		self.initText()
+
+		self.gNode = GeomNode("Trails")
+		NodePath(self.gNode).reparentTo(render)
+		self.taskMgr.doMethodLater(tick, self.drawTask, "DrawTask")
+		
 		log.info('Loading done')
 	
 	def cameraSetup(self) :
@@ -56,20 +83,24 @@ class Test(ShowBase) :
 		base.cam.node().getDisplayRegion(0).setSort(20)
 		self.cameraNode.reparentTo(self.bodies[0].node)
 		self.cameraNode.lookAt(self.bodies[0].node)
-		self.cameraNode.setCompass(render)
+		
 		camera.setY(-2700);
 		self.cameraNode.setP(90);
 		self.rotateY = 90;
+		self.cameraNode.setCompass()
 		self.curPlanet = 0
 	
 	def physTask(self, task) :
 		for o in self.bodies :
+            
 			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
-			o.lines.moveTo(o.gNode.getGeoms()[-1].getPos())
-			o.lines.drawTo(o.getPos())
-			o.lines.create(o.gNode)
-			if (len(o.gNode.getGeoms()) > geoms) :
-				o.gNode.removeGeom(0)
+			
+			wps = o.wayPoints
+            
+			wps.append(o.getPos())
+			
+			if(len(wps) > geoms) : wps.pop(0)
+			
 			thpr = o.node.getHpr()
 			hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
 			o.node.setHpr(hpr[0], hpr[1], hpr[2])
@@ -81,12 +112,13 @@ class Test(ShowBase) :
 		return Task.again
 		
 	def controllTask(self, task) :
+	
+		d = camera.getDistance(self.cameraNode.parent)
+	
 		if self.keys['zoomIn'] :
-			d = camera.getDistance(self.cameraNode.parent)
 			camera.setY(camera, d/60.0)
-			base.camLens.setFov(fov)
-		if self.keys['zoomOut'] and fov > 0.5 :
-			d = camera.getDistance(self.cameraNode.parent)
+		if self.keys['zoomOut']:
+			
 			camera.setY(camera, -d/60.0)
 		parent = self.cameraNode.getParent()
 		if self.keys['fwd'] == 1:
@@ -104,17 +136,25 @@ class Test(ShowBase) :
 		global t;		
 		
 		if self.keys['incSpeed'] == 1:
-			t*=1.01;
+			t*=self.accelerateFactor;
+			self.accelerateFactor*=1.001
+			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
+		
+		if self.keys['incSpeed'] == 0 :
+			self.accelerateFactor = 1.01
+		
+		if self.keys['decSpeed'] == 1:
+			t/=self.decelerateFactor;
+			self.decelerateFactor*=1.001
 			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 			
-		if self.keys['decSpeed'] == 1:
-			t/=1.01;
-			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
+		if self.keys['decSpeed'] == 0 :
+			self.decelerateFactor = 1.01
 
 		return Task.cont
 	
 	def loadModels(self) : 
-		planets = ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'moon']
+		planets = ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
 		for x in planets :
 			self.addPlanet(x)		
 		
@@ -165,6 +205,9 @@ class Test(ShowBase) :
 		self.accept('a-up', self.setKey, ['lft', 0])
 		self.accept('o', self.prevPlanet)
 		self.accept('p', self.nextPlanet)
+		
+		self.accelerateFactor = 1.01
+		self.decelerateFactor = 1.01
 		self.setUpMouse()
 	
 	
@@ -177,6 +220,7 @@ class Test(ShowBase) :
 	def attachCam(self, node) :
 		self.detached = False
 		self.cameraNode.reparentTo(node)
+		
 		self.camera.lookAt(node)
 		self.cameraNode.lookAt(node)
 		self.rotateX = self.cameraNode.getH()
@@ -253,7 +297,29 @@ class Test(ShowBase) :
 			self.cameraNode.setH(self.rotateX)
 			self.cameraNode.setP(self.rotateY)
 		return Task.cont
+
+	def drawTask(self, task):
 		
+		lines = LineSegs()
+		
+		NodePath(self.gNode).detachNode()
+		
+		self.gNode = lines.create()
+		m = Material()
+		m.setEmission((1,1,1,1))
+		NodePath(self.gNode).setMaterial(m)
+		NodePath(self.gNode).reparentTo(render)
+		for o in self.bodies:
+			
+			lines.setColor(o.trlClr)
+			
+			for wp in o.wayPoints:
+					lines.drawTo(wp)
+			self.gNode = lines.create(self.gNode)
+		
+		return Task.again
+                
+	
 	def incScale(self) : 
 		factor = 3
 		global scale 
@@ -273,7 +339,7 @@ class Test(ShowBase) :
 		global scale 
 		if scale >= factor :
 			scale//= factor
-<<<<<<< HEAD
+
 			
 			pos = camera.getPos(render)
 			
@@ -281,12 +347,11 @@ class Test(ShowBase) :
 				b.node.setScale(b.node.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
 			
-=======
 			pos = camera.getPos(render)
 			for b in self.bodies :
 				b.node.setScale(b.node.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
->>>>>>> origin/master
+
 			camera.setPos(render, pos)
 	
 	def addPlanet(self, name):
@@ -295,16 +360,13 @@ class Test(ShowBase) :
 		r = values.values[name]['r']*scale
 		planet.setScale(r)
 		planet.reparentTo(render)
-		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']))
-		lines = LineSegs()
-		lines.setThickness(1)
-		lines.moveTo(planet.getPos())
-		gn = lines.create()
-		m = Material()
-		m.setEmission((random.random() ,random.random() ,random.random() ,1))
-		NodePath(gn).setMaterial(m)
-		NodePath(gn).reparentTo(render)
-		body.setTrail(lines, gn)
+		
+		trlClr = (random.random(), random.random(), random.random(), 1)
+		
+		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']), trlClr)
+		
+		
+		
 		self.bodies.append(body)
 		
 
