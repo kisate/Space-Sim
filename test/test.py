@@ -11,6 +11,7 @@ from direct.gui.OnscreenImage import OnscreenImage
 from panda3d.core import GeomVertexFormat, GeomVertexData, Geom, GeomNode, GeomLinestrips
 from panda3d.core import Material, WindowProperties, MouseButton
 from direct.gui.OnscreenText import OnscreenText
+from direct.interval.LerpInterval import LerpPosInterval
 from math import pi, sin, cos
 import numpy
 from body import Body
@@ -122,16 +123,18 @@ class Test(ShowBase) :
 			camera.setY(camera, -d/60.0)
 		parent = self.cameraNode.getParent()
 		if self.keys['fwd'] == 1:
+			if not self.detached : self.detachCamera()
 			camera.setY(camera, 0.1)
 		if self.keys['bwd'] == 1:
+			if not self.detached : self.detachCamera()
 			camera.setY(camera, -0.1)
 			
 		if self.keys['lft'] == 1:
+			if not self.detached : self.detachCamera()
 			camera.setX(camera, -0.1)
-			self.detachCamera()
 		if self.keys['rt'] == 1:
+			if not self.detached : self.detachCamera()
 			camera.setX(camera, 0.1)
-			self.detachCamera()
 		
 		global t;		
 		
@@ -183,6 +186,9 @@ class Test(ShowBase) :
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
 		self.accept('r', self.resetCam)
+		self.accept('y', self.detachCamera)
+		self.accept('i', self.logCam)
+		self.accept('u', self.moveCamNodeTo)
 
 		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
 		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
@@ -218,13 +224,54 @@ class Test(ShowBase) :
 		self.attachCam(self.bodies[self.curPlanet].node)
 	
 	def attachCam(self, node) :
-		self.detached = False
-		self.cameraNode.reparentTo(node)
+		if self.detached : 
 		
-		self.camera.lookAt(node)
-		self.cameraNode.lookAt(node)
-		self.rotateX = self.cameraNode.getH()
-		self.rotateY = self.cameraNode.getP()
+			self.detached = False
+			
+			self.cameraNode.wrtReparentTo(render)
+			camera.wrtReparentTo(self.cameraNode)
+			
+			hpr = camera.getHpr()
+			
+			camera.setHpr(0,0,0)
+			
+			self.cameraNode.wrtReparentTo(node)
+			self.cameraNode.setHpr(hpr)
+			
+			self.rotateX = self.cameraNode.getH()
+			self.rotateY = self.cameraNode.getP()
+			
+			i = LerpPosInterval(self.cameraNode,
+                    100.0,
+                    (0,0,0))
+			i.start()
+	
+	def moveCamNodeTo (self, pos) :
+		
+		time = 100.0
+		
+		vec = pos - self.cameraNode.getPos()
+		d = VBase3(vec).length()
+		
+		speed = d/time
+		
+		self.taskMgr.doMethodLater(tick, self.moveToTask, 'MoveTask', extraArgs = [self.cameraNode, pos, speed])
+		
+	def moveToTask(self, node, pos, step) : 
+		if (VBase3(node.getPos() - pos).length() > VBase3(step).length()) :
+			node.setPos(node, step)
+			return Task.again
+		else :
+			node.setPos(pos)
+			return Task.done
+		
+	def logCam(self):
+		log.info('camera')
+		log.info(camera.getPos())
+		log.info(camera.getHpr())
+		log.info('node')
+		log.info(self.cameraNode.getPos())
+		log.info(self.cameraNode.getHpr())
 		
 	def nextPlanet(self) :
 		if self.curPlanet < len(self.bodies) - 1 :
@@ -255,9 +302,11 @@ class Test(ShowBase) :
 		self.detached = False
 	
 	def detachCamera(self):
-		self.detached = True
-		self.rotateXd = camera.getH()
-		self.rotateYd = camera.getP()
+		if not self.detached : 
+			self.detached = True
+			camera.wrtReparentTo(render)
+			self.cameraNode.wrtReparentTo(camera)
+			
 	
 	def mouseTask (self, task):
 		mw = base.mouseWatcherNode
@@ -285,11 +334,11 @@ class Test(ShowBase) :
 			self.scrolling = False
 		
 		if self.detached and self.scrolling :
-			self.rotateXd += dx * 10 * self.mouseMagnitude
-			self.rotateYd -= dy * 10 * self.mouseMagnitude
+			self.rotateX += dx * 10 * self.mouseMagnitude
+			self.rotateY -= dy * 10 * self.mouseMagnitude
 
-			self.camera.setH(self.rotateXd)
-			self.camera.setP(self.rotateYd)
+			self.camera.setH(self.rotateX)
+			self.camera.setP(self.rotateY)
 		elif not self.detached and self.scrolling :
 			self.rotateX += dx * 10 * self.mouseMagnitude
 			self.rotateY -= dy * 10 * self.mouseMagnitude
