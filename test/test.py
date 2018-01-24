@@ -72,7 +72,8 @@ class Test(ShowBase) :
 
 		self.gNode = GeomNode("Trails")
 		NodePath(self.gNode).reparentTo(render)
-		self.taskMgr.doMethodLater(tick, self.drawTask, "DrawTask")
+		
+		#self.taskMgr.doMethodLater(tick, self.drawTask, "DrawTask")
 		
 		log.info('Loading done')
 	
@@ -85,8 +86,14 @@ class Test(ShowBase) :
 		self.cameraNode.lookAt(self.bodies[0].node)
 		
 		camera.setY(-2700);
+		
+		camera.wrtReparentTo(render)
+		self.cameraNode.lookAt(camera)
+		camera.wrtReparentTo(self.cameraNode)
+		
 		self.cameraNode.setP(90);
 		self.rotateY = 90;
+		self.rotateX = 180;
 		self.cameraNode.setCompass()
 		self.curPlanet = 0
 	
@@ -109,47 +116,74 @@ class Test(ShowBase) :
 					f = getforce(o2, o)
 					a = numpy.divide(f, o.mass)
 					o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
+		self.draw()
 		return Task.again
 		
 	def controllTask(self, task) :
 	
 		d = camera.getDistance(self.cameraNode.parent)
-	
+		
+		log.info(d)
+		
 		if self.keys['zoomIn'] :
 			camera.setY(camera, d/60.0)
 		if self.keys['zoomOut']:
 			
 			camera.setY(camera, -d/60.0)
 		parent = self.cameraNode.getParent()
+		
 		if self.keys['fwd'] == 1:
-			camera.setY(camera, 0.1)
+		
+			self.detachCamera()
+			self.cameraNode.setY(self.cameraNode, -self.fwdStep)
+			
+			self.fwdStep *= 1.01
+		
+		else : self.fwdStep = 0.1
+		
 		if self.keys['bwd'] == 1:
-			camera.setY(camera, -0.1)
+		
+			self.detachCamera()
+			self.cameraNode.setY(self.cameraNode, self.bwdStep)
+			
+			self.bwdStep *= 1.01
+		
+		else : self.bwdStep = 0.1
 			
 		if self.keys['lft'] == 1:
-			camera.setX(camera, -0.1)
+		
 			self.detachCamera()
+			self.cameraNode.setX(self.cameraNode, self.lftStep)
+			self.lftStep *= 1.01
+		
+		else : self.lftStep = 0.1
+			
 		if self.keys['rt'] == 1:
-			camera.setX(camera, 0.1)
+		
 			self.detachCamera()
+			self.cameraNode.setX(self.cameraNode, -self.rtStep)
+			self.rtStep *= 1.01
+		
+		else : self.rtStep = 0.1
+			
 		
 		global t;		
 		
 		if self.keys['incSpeed'] == 1:
-			t*=self.accelerateFactor;
-			self.accelerateFactor*=1.001
+			t*=self.accFactor;
+			self.accFactor*=1.001
 			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 		
 		if self.keys['incSpeed'] == 0 :
-			self.accelerateFactor = 1.01
+			self.accFactor = 1.01
 		
 		if self.keys['decSpeed'] == 1:
-			t/=self.decelerateFactor;
-			self.decelerateFactor*=1.001
+			t/=self.decFactor;
+			self.decFactor*=1.001
 			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 			
 		if self.keys['decSpeed'] == 0 :
-			self.decelerateFactor = 1.01
+			self.decFactor = 1.01
 
 		return Task.cont
 	
@@ -183,6 +217,7 @@ class Test(ShowBase) :
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
 		self.accept('r', self.resetCam)
+		self.accept('l', self.logCamera)
 
 		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
 		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
@@ -206,10 +241,23 @@ class Test(ShowBase) :
 		self.accept('o', self.prevPlanet)
 		self.accept('p', self.nextPlanet)
 		
-		self.accelerateFactor = 1.01
-		self.decelerateFactor = 1.01
+		self.accFactor = 1.01
+		self.decFactor = 1.01
+		
+		self.fwdStep = 0.1
+		self.bwdStep = 0.1
+		self.lftStep = 0.1
+		self.rtStep = 0.1
+		
 		self.setUpMouse()
 	
+	def logCamera (self) :
+		log.info("Loging camera")
+		log.info(camera.getPos(render))
+		log.info(camera.getHpr(render))
+		log.info("Loging cameraNode")
+		log.info(self.cameraNode.getPos(render))
+		log.info(self.cameraNode.getHpr(render))
 	
 	def setKey(self, key, val) :
 		self.keys[key] = val
@@ -218,13 +266,36 @@ class Test(ShowBase) :
 		self.attachCam(self.bodies[self.curPlanet].node)
 	
 	def attachCam(self, node) :
-		self.detached = False
-		self.cameraNode.reparentTo(node)
 		
-		self.camera.lookAt(node)
-		self.cameraNode.lookAt(node)
-		self.rotateX = self.cameraNode.getH()
-		self.rotateY = self.cameraNode.getP()
+		if self.detached :
+		
+			self.detached = False
+		
+			log.info('pos1')
+			log.info(camera.getPos(render))
+			log.info(self.cameraNode.getPos(render))
+			log.info('hpr1')
+			log.info(camera.getHpr(render))
+			log.info(self.cameraNode.getHpr(render))
+			
+			
+			
+			camera.wrtReparentTo(render)
+			
+			self.cameraNode.reparentTo(node)
+			self.cameraNode.setPos(0,0,0)
+			camera.lookAt(node)
+			self.cameraNode.lookAt(camera)
+			camera.wrtReparentTo(self.cameraNode)
+			
+			self.rotateX = self.cameraNode.getH()
+			self.rotateY = self.cameraNode.getP()
+			log.info('pos2')
+			log.info(camera.getPos(render))
+			log.info(self.cameraNode.getPos(render))
+			log.info('hpr2')
+			log.info(camera.getHpr(render))
+			log.info(self.cameraNode.getHpr())
 		
 	def nextPlanet(self) :
 		if self.curPlanet < len(self.bodies) - 1 :
@@ -256,8 +327,12 @@ class Test(ShowBase) :
 	
 	def detachCamera(self):
 		self.detached = True
-		self.rotateXd = camera.getH()
-		self.rotateYd = camera.getP()
+		camera.wrtReparentTo(render)
+		self.cameraNode.wrtReparentTo(render)
+		
+		self.cameraNode.setPos(render, camera.getPos(render))
+		
+		camera.wrtReparentTo(self.cameraNode)
 	
 	def mouseTask (self, task):
 		mw = base.mouseWatcherNode
@@ -284,13 +359,8 @@ class Test(ShowBase) :
 			x, y, dx, dy, self.lastMouseX, self.lastMouseY = 0, 0, 0, 0, 0, 0
 			self.scrolling = False
 		
-		if self.detached and self.scrolling :
-			self.rotateXd += dx * 10 * self.mouseMagnitude
-			self.rotateYd -= dy * 10 * self.mouseMagnitude
-
-			self.camera.setH(self.rotateXd)
-			self.camera.setP(self.rotateYd)
-		elif not self.detached and self.scrolling :
+		if self.scrolling :
+			
 			self.rotateX += dx * 10 * self.mouseMagnitude
 			self.rotateY -= dy * 10 * self.mouseMagnitude
 
@@ -298,16 +368,18 @@ class Test(ShowBase) :
 			self.cameraNode.setP(self.rotateY)
 		return Task.cont
 
-	def drawTask(self, task):
+	def draw(self):
 		
 		lines = LineSegs()
 		
 		NodePath(self.gNode).detachNode()
 		
 		self.gNode = lines.create()
+		
 		m = Material()
 		m.setEmission((1,1,1,1))
 		NodePath(self.gNode).setMaterial(m)
+		
 		NodePath(self.gNode).reparentTo(render)
 		for o in self.bodies:
 			
@@ -317,7 +389,7 @@ class Test(ShowBase) :
 					lines.drawTo(wp)
 			self.gNode = lines.create(self.gNode)
 		
-		return Task.again
+		#return Task.again
                 
 	
 	def incScale(self) : 
