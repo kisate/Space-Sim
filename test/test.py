@@ -73,7 +73,8 @@ class Test(ShowBase) :
 
 		self.gNode = GeomNode("Trails")
 		NodePath(self.gNode).reparentTo(render)
-		self.taskMgr.doMethodLater(tick, self.drawTask, "DrawTask")
+		
+		#self.taskMgr.doMethodLater(tick, self.drawTask, "DrawTask")
 		
 		log.info('Loading done')
 	
@@ -86,6 +87,7 @@ class Test(ShowBase) :
 		self.cameraNode.lookAt(self.bodies[0].node)
 		
 		camera.setY(-2700);
+		
 		self.cameraNode.setP(90);
 		self.rotateY = 90;
 		self.cameraNode.setCompass()
@@ -110,49 +112,81 @@ class Test(ShowBase) :
 					f = getforce(o2, o)
 					a = numpy.divide(f, o.mass)
 					o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
+		self.draw()
 		return Task.again
 		
 	def controllTask(self, task) :
 	
 		d = camera.getDistance(self.cameraNode.parent)
-	
+		
+		log.info(d)
+		
 		if self.keys['zoomIn'] :
 			camera.setY(camera, d/60.0)
 		if self.keys['zoomOut']:
 			
 			camera.setY(camera, -d/60.0)
 		parent = self.cameraNode.getParent()
+		
 		if self.keys['fwd'] == 1:
-			if not self.detached : self.detachCamera()
-			camera.setY(camera, 0.1)
+		
+			self.detachCamera()
+			self.cameraNode.setY(self.cameraNode, -self.fwdStep)
+			
+			self.fwdStep *= 1.01
+		
+		else : self.fwdStep = 0.1
+		
 		if self.keys['bwd'] == 1:
-			if not self.detached : self.detachCamera()
-			camera.setY(camera, -0.1)
+		
+			self.detachCamera()
+			camera.setY(camera, self.bwdStep)
+			
+			self.bwdStep *= 1.01
+		
+		else : self.bwdStep = 0.1
 			
 		if self.keys['lft'] == 1:
-			if not self.detached : self.detachCamera()
-			camera.setX(camera, -0.1)
+		
+			self.detachCamera()
+			camera.setY(camera, -self.lftStep)
+			self.lftStep *= 1.01
+		
+		else : self.lftStep = 0.1
+			
 		if self.keys['rt'] == 1:
-			if not self.detached : self.detachCamera()
-			camera.setX(camera, 0.1)
+		
+			self.detachCamera()
+			camera.setX(camera, self.rtStep)
+			self.rtStep *= 1.01
+		
+		else : self.rtStep = 0.1
+		
+		if self.keys['lft'] == 1:
+		
+			self.detachCamera()
+			camera.setX(camera, -self.lftStep)
+			self.lftStep *= 1.01
+		
+		else : self.lftStep = 0.1
 		
 		global t;		
 		
 		if self.keys['incSpeed'] == 1:
-			t*=self.accelerateFactor;
-			self.accelerateFactor*=1.001
+			t*=self.accFactor;
+			self.accFactor*=1.001
 			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 		
 		if self.keys['incSpeed'] == 0 :
-			self.accelerateFactor = 1.01
+			self.accFactor = 1.01
 		
 		if self.keys['decSpeed'] == 1:
-			t/=self.decelerateFactor;
-			self.decelerateFactor*=1.001
+			t/=self.decFactor;
+			self.decFactor*=1.001
 			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 			
 		if self.keys['decSpeed'] == 0 :
-			self.decelerateFactor = 1.01
+			self.decFactor = 1.01
 
 		return Task.cont
 	
@@ -212,10 +246,23 @@ class Test(ShowBase) :
 		self.accept('o', self.prevPlanet)
 		self.accept('p', self.nextPlanet)
 		
-		self.accelerateFactor = 1.01
-		self.decelerateFactor = 1.01
+		self.accFactor = 1.01
+		self.decFactor = 1.01
+		
+		self.fwdStep = 0.1
+		self.bwdStep = 0.1
+		self.lftStep = 0.1
+		self.rtStep = 0.1
+		
 		self.setUpMouse()
 	
+	def logCamera (self) :
+		log.info("Loging camera")
+		log.info(camera.getPos(render))
+		log.info(camera.getHpr(render))
+		log.info("Loging cameraNode")
+		log.info(self.cameraNode.getPos(render))
+		log.info(self.cameraNode.getHpr(render))
 	
 	def setKey(self, key, val) :
 		self.keys[key] = val
@@ -224,6 +271,7 @@ class Test(ShowBase) :
 		self.attachCam(self.bodies[self.curPlanet].node)
 	
 	def attachCam(self, node) :
+
 		if self.detached : 
 		
 			self.detached = False
@@ -241,10 +289,7 @@ class Test(ShowBase) :
 			self.rotateX = self.cameraNode.getH()
 			self.rotateY = self.cameraNode.getP()
 			
-			i = LerpPosInterval(self.cameraNode,
-                    100.0,
-                    (0,0,0))
-			i.start()
+			self.cameraNode.setPos(0,0,0)
 	
 	def moveCamNodeTo (self, pos) :
 		
@@ -272,6 +317,7 @@ class Test(ShowBase) :
 		log.info('node')
 		log.info(self.cameraNode.getPos())
 		log.info(self.cameraNode.getHpr())
+
 		
 	def nextPlanet(self) :
 		if self.curPlanet < len(self.bodies) - 1 :
@@ -306,7 +352,6 @@ class Test(ShowBase) :
 			self.detached = True
 			camera.wrtReparentTo(render)
 			self.cameraNode.wrtReparentTo(camera)
-			
 	
 	def mouseTask (self, task):
 		mw = base.mouseWatcherNode
@@ -347,16 +392,18 @@ class Test(ShowBase) :
 			self.cameraNode.setP(self.rotateY)
 		return Task.cont
 
-	def drawTask(self, task):
+	def draw(self):
 		
 		lines = LineSegs()
 		
 		NodePath(self.gNode).detachNode()
 		
 		self.gNode = lines.create()
+		
 		m = Material()
 		m.setEmission((1,1,1,1))
 		NodePath(self.gNode).setMaterial(m)
+		
 		NodePath(self.gNode).reparentTo(render)
 		for o in self.bodies:
 			
@@ -366,7 +413,7 @@ class Test(ShowBase) :
 					lines.drawTo(wp)
 			self.gNode = lines.create(self.gNode)
 		
-		return Task.again
+		#return Task.again
                 
 	
 	def incScale(self) : 
