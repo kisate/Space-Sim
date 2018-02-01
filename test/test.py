@@ -88,13 +88,8 @@ class Test(ShowBase) :
 		
 		camera.setY(-2700);
 		
-		camera.wrtReparentTo(render)
-		self.cameraNode.lookAt(camera)
-		camera.wrtReparentTo(self.cameraNode)
-		
 		self.cameraNode.setP(90);
 		self.rotateY = 90;
-		self.rotateX = 180;
 		self.cameraNode.setCompass()
 		self.curPlanet = 0
 	
@@ -123,8 +118,6 @@ class Test(ShowBase) :
 	def controllTask(self, task) :
 	
 		d = camera.getDistance(self.cameraNode.parent)
-		
-		log.info(d)
 		
 		if self.keys['zoomIn'] :
 			camera.setY(camera, d/60.0)
@@ -227,7 +220,6 @@ class Test(ShowBase) :
 		self.accept('r', self.resetCam)
 		self.accept('y', self.detachCamera)
 		self.accept('i', self.logCam)
-		self.accept('u', self.moveCamNodeTo)
 
 		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
 		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
@@ -262,10 +254,10 @@ class Test(ShowBase) :
 		self.setUpMouse()
 	
 	def logCamera (self) :
-		log.info("Loging camera")
+		log.info("Logging camera")
 		log.info(camera.getPos(render))
 		log.info(camera.getHpr(render))
-		log.info("Loging cameraNode")
+		log.info("Logging cameraNode")
 		log.info(self.cameraNode.getPos(render))
 		log.info(self.cameraNode.getHpr(render))
 	
@@ -294,29 +286,7 @@ class Test(ShowBase) :
 			self.rotateX = self.cameraNode.getH()
 			self.rotateY = self.cameraNode.getP()
 			
-			i = LerpPosInterval(self.cameraNode,
-                    100.0,
-                    (0,0,0))
-			i.start()
-	
-	def moveCamNodeTo (self, pos) :
-		
-		time = 100.0
-		
-		vec = pos - self.cameraNode.getPos()
-		d = VBase3(vec).length()
-		
-		speed = d/time
-		
-		self.taskMgr.doMethodLater(tick, self.moveToTask, 'MoveTask', extraArgs = [self.cameraNode, pos, speed])
-		
-	def moveToTask(self, node, pos, step) : 
-		if (VBase3(node.getPos() - pos).length() > VBase3(step).length()) :
-			node.setPos(node, step)
-			return Task.again
-		else :
-			node.setPos(pos)
-			return Task.done
+			self.cameraNode.setPos(0,0,0)
 		
 	def logCam(self):
 		log.info('camera')
@@ -410,7 +380,7 @@ class Test(ShowBase) :
 		
 		m = Material()
 		m.setEmission((1,1,1,1))
-		NodePath(self.gNode).setMaterial(m)
+		#NodePath(self.gNode).setMaterial(m)
 		
 		NodePath(self.gNode).reparentTo(render)
 		for o in self.bodies:
@@ -465,7 +435,7 @@ class Test(ShowBase) :
 		planet.setScale(r)
 		planet.reparentTo(render)
 		
-		trlClr = (random.random(), random.random(), random.random(), 1)
+		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
 		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']), trlClr)
 		
