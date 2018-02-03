@@ -382,7 +382,7 @@ class Test(ShowBase) :
 		m = Material()
 		m.setEmission((1,1,1,1))
 		#NodePath(self.gNode).setMaterial(m)
->>>>>>> origin/master
+
 		
 		NodePath(self.gNode).reparentTo(render)
 		for o in self.bodies:
