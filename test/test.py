@@ -13,24 +13,25 @@ from panda3d.core import Material, WindowProperties, MouseButton
 from direct.gui.OnscreenText import OnscreenText
 from direct.interval.LerpInterval import LerpPosInterval
 from direct.filter.CommonFilters import CommonFilters
+from panda3d.ode import OdeWorld, OdeBody, OdeMass
 from math import pi, sin, cos
 import numpy
 from body import Body
 import values
 import random
 import sys
+import pickle
 t = 10000
 g = 6.67408e-20
-tick = 1/100
 geoms = 1500
 fov = 100
-
+tick = 1/100
 scale = 1
 def getforce (o2, o1) :
 	k = o1.mass*o2.mass*g
 	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
 	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
-
+	
 class Test(ShowBase) :
 	def __init__ (self):
 		log.info('Loading started')
@@ -40,6 +41,7 @@ class Test(ShowBase) :
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
 			
+		self.world = OdeWorld()
 		
 		self.loadModels()
 		
@@ -94,7 +96,7 @@ class Test(ShowBase) :
 	def setUpCamera(self) :
 		self.cameraNode = render.attachNewNode('cameraNode')
 		camera.reparentTo(self.cameraNode)
-		base.camLens.setFov(50)
+		base.camLens.setFov(100)
 		
 		self.cameraNode.reparentTo(self.bodies[0].node)
 		self.cameraNode.lookAt(self.bodies[0].node)
@@ -106,13 +108,13 @@ class Test(ShowBase) :
 		self.cameraNode.setCompass()
 		self.curPlanet = 0
 		
-		log.info("Camera set up")
+		log.info("Camera is set up")
 		
 		self.filters = CommonFilters(base.win, base.cam)
 		filterok = self.filters.setBloom(
 			blend=(0, 0, 0, 1), desat=-0.5, intensity=3.0, size=1)
 		
-		log.info("Filters set up")
+		log.info("Filters are set up")
 		
 		self.setUpSkyBox()
 		
@@ -131,9 +133,18 @@ class Test(ShowBase) :
 		m = Material()
 		m.setEmission((1,1,1,0))
 		self.skybox.setMaterial(m)
-		log.info("Skybox set up")
+		log.info("Skybox is set up")
 	
 	def physTask(self, task) :
+		
+		dt = globalClock.getDt()
+		while dt >= tick :
+			for b1 in self.bodies:
+				pos = b.odebody.getPosition()
+				for b2 in self.bodies:
+					
+			self.world.quickstep(t)
+			dt-=tick	
 		for o in self.bodies :
             
 			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
@@ -249,7 +260,7 @@ class Test(ShowBase) :
 		self.cameraSelection = 0
 		self.lightSelection = 0
 		
-		log.info("Lights set up")
+		log.info("Lights are set up")
 		
 	def initText(self) :
 		self.speedText = OnscreenText(text = str(t) + ' seconds per tick [+/-]', pos = (-0.9, 0.9), scale = 0.07, fg = (1,1,1,1))
@@ -297,7 +308,7 @@ class Test(ShowBase) :
 		
 		self.setUpMouse()
 		
-		log.info("Controlls set up")
+		log.info("Controls are set up")
 	
 	def logCamera (self) :
 		log.info("Logging camera")
@@ -481,14 +492,33 @@ class Test(ShowBase) :
 		planet = loader.loadModel('models/planet_sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
 		r = values.values[name]['r']*scale
-		planet.setScale(r)
+		planet.setScale(r**3)
 		planet.reparentTo(render)
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']), trlClr)
+		mass = OdeMass()
+		mass.setSphere(total_mass = values.values[name]['m'], values.values[name]['r'])
+		obody = OdeBody(self.world)
+		
+		pos = VBase3(*values.values[name]['p'])
+		vel = VBase3(*values.values[name]['v'])
+		av = VBase3(*values.values[name]['av'])
+		
+		obody.setPosition(pos)
+		obody.setLinearVel(vel)
+		obody.setAngularVel(avel)
+		
+		planet.setPos(pos)
+		
+		body = Body(planet, body, trlClr)
 		
 		self.bodies.append(body)
+	
+	def loadSimulation(self, n) :
+		file = open("simulations/{}.sim".format(n), 'r')
+		sim = pickle.load(file)
+		
 		
 
 test = Test()

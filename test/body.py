@@ -2,15 +2,12 @@ import numpy
 import math
 from panda3d.core import Geom, Vec4, Material
 class Body :
-	def __init__ (self, n, m, p = numpy.array([0,0,0]), v = numpy.array([0,0,0]), av = numpy.array([0,0,0]), trlClr = (1, 1, 1, 1), t = 0):
-		self.mass = m
-		self.node = n
-		self.v = v
-		self.av = av
-		self.setPos(p)
+	def __init__ (self, node, odebody, trailColor = (1, 1, 1, 1), temperature = 0):
+		self.node = node
+		self.odebody = odebody
 		self.wayPoints = []
-		self.trlClr = trlClr
-		self.setTemperature(t)
+		self.trlClr = trailColor
+		self.setTemperature(temperature)
 	
 	def setTemperature(self, t):
 		self.temperature = t
@@ -24,12 +21,7 @@ class Body :
 		else :
 			self.node.setColorScale((1,1,1,1))
 			self.node.clearMaterial()
-		
-	def setPos (self, p, move = True) :
-		self.pos = p
-		if move : self.node.setPos(p[0],p[1],p[2])
-	def getPos (self) :
-		return self.node.getPos()
+			
 	def getColor(self):
 		temp = self.temperature/100
 		r, g, b = 0, 0, 0
