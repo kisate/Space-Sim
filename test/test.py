@@ -28,9 +28,17 @@ fov = 100
 tick = 1/100
 scale = 1
 def getforce (o2, o1) :
-	k = o1.mass*o2.mass*g
-	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
-	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
+	k = o1.getMass().mass*o2.getMass().mass*g
+	pos1 = o1.getPosition()
+	pos2 = o2.getPosition()
+	r = pos1 - pos2
+	x = r.getX()
+	y = r.getY()
+	z = r.getZ()
+	x = sign(x)*k/x**2
+	y = sign(x)*k/y**2
+	z = sign(z)*k/z**2
+	return VBase3(x,y,z)
 	
 class Test(ShowBase) :
 	def __init__ (self):
@@ -47,22 +55,22 @@ class Test(ShowBase) :
 		
 		log.info("Counting {} waipoints".format(geoms))
 		
-		for i in range(geoms):
-			for o in self.bodies :
+		# for i in range(geoms):
+			# for o in self.bodies :
                         
-				o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
+				# o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
 				
-				o.wayPoints.append(o.getPos())
+				# o.wayPoints.append(o.getPos())
 				
-				thpr = o.node.getHpr()
-				hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
-				o.node.setHpr(hpr[0], hpr[1], hpr[2])
-				for o2 in self.bodies :
-					if o2 != o :
-						f = getforce(o2, o)
-						a = numpy.divide(f, o.mass)
-						o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
-			if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
+				# thpr = o.node.getHpr()
+				# hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
+				# o.node.setHpr(hpr[0], hpr[1], hpr[2])
+				# for o2 in self.bodies :
+					# if o2 != o :
+						# f = getforce(o2, o)
+						# a = numpy.divide(f, o.mass)
+						# o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
+			# if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
 		
 		
 		log.info("100.0%")
@@ -140,29 +148,16 @@ class Test(ShowBase) :
 		dt = globalClock.getDt()
 		while dt >= tick :
 			for b1 in self.bodies:
-				pos = b.odebody.getPosition()
+				b1.odebody.setForce(VBase3(0,0,0))
 				for b2 in self.bodies:
-					
+					if b1 != b2 :
+						b1.odebody.addForce(getforce(b2.odebody, b1.odebody))
 			self.world.quickstep(t)
 			dt-=tick	
-		for o in self.bodies :
-            
-			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
-			
-			wps = o.wayPoints
-            
-			wps.append(o.getPos())
-			
-			if(len(wps) > geoms) : wps.pop(0)
-			
-			thpr = o.node.getHpr()
-			hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
-			o.node.setHpr(hpr[0], hpr[1], hpr[2])
-			for o2 in self.bodies :
-				if o2 != o :
-					f = getforce(o2, o)
-					a = numpy.divide(f, o.mass)
-					o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
+		
+		for b in self.bodies :
+			b.node.getPosQuat(b.odebody.getPosition(), Quat(b.odebody.getQuaterion()))
+		
 		self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		self.draw()
 		return Task.again
@@ -498,7 +493,7 @@ class Test(ShowBase) :
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
 		mass = OdeMass()
-		mass.setSphere(total_mass = values.values[name]['m'], values.values[name]['r'])
+		mass.setSphereTotal(total_mass = values.values[name]['m'], radius = values.values[name]['r'])
 		obody = OdeBody(self.world)
 		
 		pos = VBase3(*values.values[name]['p'])
@@ -507,11 +502,11 @@ class Test(ShowBase) :
 		
 		obody.setPosition(pos)
 		obody.setLinearVel(vel)
-		obody.setAngularVel(avel)
+		obody.setAngularVel(av)
 		
 		planet.setPos(pos)
 		
-		body = Body(planet, body, trlClr)
+		body = Body(planet, obody, trlClr)
 		
 		self.bodies.append(body)
 	
