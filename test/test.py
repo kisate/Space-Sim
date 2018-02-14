@@ -13,8 +13,8 @@ from panda3d.core import Material, WindowProperties, MouseButton
 from direct.gui.OnscreenText import OnscreenText
 from direct.interval.LerpInterval import LerpPosInterval
 from direct.filter.CommonFilters import CommonFilters
-from panda3d.ode import OdeWorld, OdeBody, OdeMass
-from math import pi, sin, cos
+from panda3d.bullet import BulletWorld, BulletSphereShape, BulletRigidBodyNode
+from math import pi, sin, cos, copysign
 import numpy
 from body import Body
 import values
@@ -22,22 +22,22 @@ import random
 import sys
 import pickle
 t = 10000
-g = 6.67408e-20
+G = 6.67408e-20
 geoms = 1500
 fov = 100
 tick = 1/100
 scale = 1
 def getforce (o2, o1) :
-	k = o1.getMass().mass*o2.getMass().mass*g
-	pos1 = o1.getPosition()
-	pos2 = o2.getPosition()
+	k = o1.rbnode.getMass()*o2.rbnode.getMass()*G
+	pos1 = o1.node.getPos()
+	pos2 = o2.node.getPos()
 	r = pos1 - pos2
 	x = r.getX()
 	y = r.getY()
 	z = r.getZ()
-	x = sign(x)*k/x**2
-	y = sign(x)*k/y**2
-	z = sign(z)*k/z**2
+	if x != 0.0 : x = copysign(x, k/x**2)
+	if y != 0.0 : y = sign(y, k/y**2)
+	if z != 0.0 : z = sign(z, k/z**2)
 	return VBase3(x,y,z)
 	
 class Test(ShowBase) :
@@ -49,7 +49,7 @@ class Test(ShowBase) :
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
 			
-		self.world = OdeWorld()
+		self.world = BulletWorld()
 		
 		self.loadModels()
 		
@@ -80,7 +80,7 @@ class Test(ShowBase) :
 		node.setTexture(loader.loadTexture('textures/sun2.jpg'))
 		self.bodies[0].setTemperature(2000)
 		#NodePath(self.gNode).setMaterial(m)
-		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
+		self.taskMgr.add(self.physTask, 'PhysTask')
 		self.taskMgr.add(self.controllTask, 'ControllTask')
 		self.setUpKeys()
 		self.setUpCamera()
@@ -148,19 +148,16 @@ class Test(ShowBase) :
 		dt = globalClock.getDt()
 		while dt >= tick :
 			for b1 in self.bodies:
-				b1.odebody.setForce(VBase3(0,0,0))
+				b1.rbnode.clearForces()
 				for b2 in self.bodies:
 					if b1 != b2 :
-						b1.odebody.addForce(getforce(b2.odebody, b1.odebody))
-			self.world.quickstep(t)
+						b1.rbnode.setLinearVelocity((1,0,0))
+			self.world.doPhysics(tick)
 			dt-=tick	
-		
-		for b in self.bodies :
-			b.node.getPosQuat(b.odebody.getPosition(), Quat(b.odebody.getQuaterion()))
 		
 		self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		self.draw()
-		return Task.again
+		return Task.cont
 		
 	def controllTask(self, task) :
 	
@@ -339,13 +336,14 @@ class Test(ShowBase) :
 			self.rotateY = self.cameraNode.getP()
 			
 			self.cameraNode.setPos(0,0,0)
+			self.cameraNode.setScale(1)
 		
 	def logCam(self):
 		log.info('camera')
 		log.info(camera.getPos())
 		log.info(camera.getHpr())
 		log.info('node')
-		log.info(self.cameraNode.getPos())
+		log.info(self.cameraNode.getPos(render))
 		log.info(self.cameraNode.getHpr())
 		log.info('skybox')
 		log.info(self.skybox.getPos())
@@ -487,26 +485,32 @@ class Test(ShowBase) :
 		planet = loader.loadModel('models/planet_sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
 		r = values.values[name]['r']*scale
-		planet.setScale(r**3)
+		planet.setScale(r)
 		planet.reparentTo(render)
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		mass = OdeMass()
-		mass.setSphereTotal(total_mass = values.values[name]['m'], radius = values.values[name]['r'])
-		obody = OdeBody(self.world)
+		shape = BulletSphereShape(r)
+		
+		rbnode = BulletRigidBodyNode(name)
+		rbnode.setMass(10**30)
+		rbnode.addShape(shape)
 		
 		pos = VBase3(*values.values[name]['p'])
 		vel = VBase3(*values.values[name]['v'])
 		av = VBase3(*values.values[name]['av'])
 		
-		obody.setPosition(pos)
-		obody.setLinearVel(vel)
-		obody.setAngularVel(av)
+		np = render.attachNewNode(rbnode)
+		np.setPos((1,0,0))
 		
-		planet.setPos(pos)
+		self.world.attachRigidBody(rbnode)
 		
-		body = Body(planet, obody, trlClr)
+		#rbnode.setLinearVelocity(vel)
+		#rbnode.setAngularVelocity(av)
+		
+		planet.reparentTo(np)	
+		
+		body = Body(planet, rbnode, trlClr)
 		
 		self.bodies.append(body)
 	

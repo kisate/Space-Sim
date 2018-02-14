@@ -2,9 +2,9 @@ import numpy
 import math
 from panda3d.core import Geom, Vec4, Material
 class Body :
-	def __init__ (self, node, odebody, trailColor = (1, 1, 1, 1), temperature = 0):
+	def __init__ (self, node, rbnode, trailColor = (1, 1, 1, 1), temperature = 0):
 		self.node = node
-		self.odebody = odebody
+		self.rbnode = rbnode
 		self.wayPoints = []
 		self.trlClr = trailColor
 		self.setTemperature(temperature)
