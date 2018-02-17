@@ -21,7 +21,7 @@ import random
 import sys
 t = 10000
 g = 6.67408e-20
-tick = 1/100
+tick = 1/10
 geoms = 1500
 fov = 100
 
@@ -45,21 +45,21 @@ class Test(ShowBase) :
 		
 		log.info("Counting {} waipoints".format(geoms))
 		
-		for i in range(geoms):
-			for o in self.bodies :
+		# for i in range(geoms):
+			# for o in self.bodies :
                         
-				o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
+				# o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
 				
-				o.wayPoints.append(o.getPos())
+				# o.wayPoints.append(o.getPos())
 				
-				thpr = o.node.getHpr()
-				hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
-				o.node.setHpr(hpr[0], hpr[1], hpr[2])
-				for o2 in self.bodies :
-					if o2 != o :
-						a = getAcc(o2, o)
-						o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
-			if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
+				# thpr = o.node.getHpr()
+				# hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
+				# o.node.setHpr(hpr[0], hpr[1], hpr[2])
+				# for o2 in self.bodies :
+					# if o2 != o :
+						# a = getAcc(o2, o)
+						# o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
+			# if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
 		
 		
 		log.info("100.0%")
@@ -69,7 +69,7 @@ class Test(ShowBase) :
 		node.setTexture(loader.loadTexture('textures/sun2.jpg'))
 		self.bodies[0].setTemperature(2000)
 		#NodePath(self.gNode).setMaterial(m)
-		self.taskMgr.add(self.physTask, 'PhysTask')
+		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
 		self.taskMgr.add(self.controllTask, 'ControllTask')
 		self.setUpKeys()
 		self.setUpCamera()
@@ -125,7 +125,7 @@ class Test(ShowBase) :
 		self.skybox.setTwoSided(True)
 		self.skybox.setBin('background', 10)
 		self.skybox.setDepthWrite(0)
-		self.skybox.setScale(20000)
+		self.skybox.setScale(1000)
 		self.skybox.setCompass()
 		m = Material()
 		m.setEmission((1,1,1,0))
@@ -133,9 +133,11 @@ class Test(ShowBase) :
 		log.info("Skybox set up")
 	
 	def physTask(self, task) :
+		
+		
 		for o in self.bodies :
             
-			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
+			o.node.setPos(o.node, (o.v[0]*t, o.v[1]*t, o.v[2]*t))
 			
 			wps = o.wayPoints
             
@@ -152,7 +154,7 @@ class Test(ShowBase) :
 					#o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
 		self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		self.draw()
-		return Task.cont
+		return Task.again
 		
 	def controllTask(self, task) :
 	
@@ -482,12 +484,18 @@ class Test(ShowBase) :
 		planet = loader.loadModel('models/planet_sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
 		r = values.values[name]['r']*scale
-		planet.setScale(r)
+		
+		f = 1e-6
+		
+		planet.setScale(r*f)
 		planet.reparentTo(render)
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array([20,0,0]), numpy.array(values.values[name]['av']), trlClr)
+		pos = values.values[name]['p']
+		v = values.values[name]['v']
+		
+		body = Body(planet, values.values[name]['m'], numpy.array([pos[0]*f, pos[1]*f, pos[2]*f]), numpy.array([v[0]*f, v[1]*f, v[2]*f]), numpy.array(values.values[name]['av']), trlClr)
 		
 		self.bodies.append(body)
 		
