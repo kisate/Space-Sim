@@ -48,12 +48,17 @@ class Test(ShowBase) :
 		self.gNode = GeomNode('gnode')
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
-			
+		
+		self.massScale = 1e19
+		
+		global G
+		G*=self.massScale
+		
 		self.world = BulletWorld()
 		
 		self.loadModels()
 		
-		log.info("Counting {} waipoints".format(geoms))
+		log.info("Counting {} waypoints".format(geoms))
 		
 		# for i in range(geoms):
 			# for o in self.bodies :
@@ -78,7 +83,7 @@ class Test(ShowBase) :
 		node = self.bodies[0].node
 		
 		node.setTexture(loader.loadTexture('textures/sun2.jpg'))
-		self.bodies[0].setTemperature(2000)
+		self.bodies[0].setTemperature(6500)
 		#NodePath(self.gNode).setMaterial(m)
 		self.taskMgr.add(self.physTask, 'PhysTask')
 		self.taskMgr.add(self.controllTask, 'ControllTask')
@@ -105,6 +110,7 @@ class Test(ShowBase) :
 		self.cameraNode = render.attachNewNode('cameraNode')
 		camera.reparentTo(self.cameraNode)
 		base.camLens.setFov(100)
+		base.camLens.setFar(1000000)
 		
 		self.cameraNode.reparentTo(self.bodies[0].node)
 		self.cameraNode.lookAt(self.bodies[0].node)
@@ -147,15 +153,14 @@ class Test(ShowBase) :
 		
 		dt = globalClock.getDt()
 		while dt >= tick :
-			for b1 in self.bodies:
-				b1.rbnode.clearForces()
-				for b2 in self.bodies:
-					if b1 != b2 :
-						b1.rbnode.setLinearVelocity((1,0,0))
-			self.world.doPhysics(tick)
+			
+			self.world.doPhysics(t)
 			dt-=tick	
 		
-		self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
+		for b in self.bodies :
+			b.wayPoints.append(b.rbnode.getPos())
+		
+		#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		self.draw()
 		return Task.cont
 		
@@ -264,9 +269,9 @@ class Test(ShowBase) :
 		self.accept("escape", sys.exit)
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
-		self.accept('r', self.resetCam)
+		self.accept('r', self.resetCamera)
 		self.accept('y', self.detachCamera)
-		self.accept('i', self.logCam)
+		self.accept('i', self.logCamera)
 
 		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
 		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
@@ -302,18 +307,10 @@ class Test(ShowBase) :
 		
 		log.info("Controls are set up")
 	
-	def logCamera (self) :
-		log.info("Logging camera")
-		log.info(camera.getPos(render))
-		log.info(camera.getHpr(render))
-		log.info("Logging cameraNode")
-		log.info(self.cameraNode.getPos(render))
-		log.info(self.cameraNode.getHpr(render))
-	
 	def setKey(self, key, val) :
 		self.keys[key] = val
 	
-	def resetCam(self) :
+	def resetCamera(self) :
 		self.attachCam(self.bodies[self.curPlanet].node)
 	
 	def attachCam(self, node) :
@@ -338,7 +335,7 @@ class Test(ShowBase) :
 			self.cameraNode.setPos(0,0,0)
 			self.cameraNode.setScale(1)
 		
-	def logCam(self):
+	def logCamera(self):
 		log.info('camera')
 		log.info(camera.getPos())
 		log.info(camera.getHpr())
@@ -348,6 +345,9 @@ class Test(ShowBase) :
 		log.info('skybox')
 		log.info(self.skybox.getPos())
 		log.info(self.skybox.getHpr())
+		log.info('waypoints')
+		for b in self.bodies:
+			log.info(len(b.wayPoints))
 
 		
 	def nextPlanet(self) :
@@ -458,6 +458,7 @@ class Test(ShowBase) :
 		for b in self.bodies :
 			b.node.setScale(b.node.getScale()[0]*factor)
 			
+		self.cameraNode.setScale(1)
 		camera.setPos(render, pos)
 		
 		
@@ -478,7 +479,8 @@ class Test(ShowBase) :
 			for b in self.bodies :
 				b.node.setScale(b.node.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
-
+			
+			self.cameraNode.setScale(1)
 			camera.setPos(render, pos)
 	
 	def addPlanet(self, name):
@@ -493,24 +495,24 @@ class Test(ShowBase) :
 		shape = BulletSphereShape(r)
 		
 		rbnode = BulletRigidBodyNode(name)
-		rbnode.setMass(10**30)
+		rbnode.setMass(values.values[name]['m']/self.massScale)
 		rbnode.addShape(shape)
 		
-		pos = VBase3(*values.values[name]['p'])
+		pos = values.values[name]['p']
 		vel = VBase3(*values.values[name]['v'])
 		av = VBase3(*values.values[name]['av'])
 		
 		np = render.attachNewNode(rbnode)
-		np.setPos((1,0,0))
+		np.setPos(VBase3(*pos))
 		
 		self.world.attachRigidBody(rbnode)
 		
-		#rbnode.setLinearVelocity(vel)
-		#rbnode.setAngularVelocity(av)
+		rbnode.setLinearVelocity(vel)
+		rbnode.setAngularVelocity(av)
 		
 		planet.reparentTo(np)	
 		
-		body = Body(planet, rbnode, trlClr)
+		body = Body(planet, np, trlClr)
 		
 		self.bodies.append(body)
 	
