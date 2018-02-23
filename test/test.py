@@ -13,24 +13,25 @@ from panda3d.core import Material, WindowProperties, MouseButton
 from direct.gui.OnscreenText import OnscreenText
 from direct.interval.LerpInterval import LerpPosInterval
 from direct.filter.CommonFilters import CommonFilters
-from math import pi, sin, cos
+from panda3d.bullet import BulletWorld, BulletSphereShape, BulletRigidBodyNode
+from math import pi, sin, cos, copysign
 import numpy
 from body import Body
 import values
 import random
 import sys
+import pickle
 t = 10000
-g = 6.67408e-20
-tick = 1/100
+G = 6.67408e-20
 geoms = 1500
 fov = 100
-
+tick = 1/100
 scale = 1
 def getforce (o2, o1) :
-	k = o1.mass*o2.mass*g
+	k = o1.mass*o2.mass*G
 	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
 	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
-
+	
 class Test(ShowBase) :
 	def __init__ (self):
 		log.info('Loading started')
@@ -39,11 +40,13 @@ class Test(ShowBase) :
 		self.gNode = GeomNode('gnode')
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
-			
+		
+		
+		self.world = BulletWorld()
 		
 		self.loadModels()
 		
-		log.info("Counting {} waipoints".format(geoms))
+		log.info("Counting {} waypoints".format(geoms))
 		
 		for i in range(geoms):
 			for o in self.bodies :
@@ -68,9 +71,9 @@ class Test(ShowBase) :
 		node = self.bodies[0].node
 		
 		node.setTexture(loader.loadTexture('textures/sun2.jpg'))
-		self.bodies[0].setTemperature(2000)
+		self.bodies[0].setTemperature(6500)
 		#NodePath(self.gNode).setMaterial(m)
-		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
+		self.taskMgr.add(self.physTask, 'PhysTask')
 		self.taskMgr.add(self.controllTask, 'ControllTask')
 		self.setUpKeys()
 		self.setUpCamera()
@@ -96,6 +99,7 @@ class Test(ShowBase) :
 		camera.reparentTo(self.cameraNode)
 		base.camLens.setFov(106)
 		base.camLens.setNearFar(0.1, 1e12)
+
 		
 		self.cameraNode.reparentTo(self.bodies[0].node)
 		self.cameraNode.lookAt(self.bodies[0].node)
@@ -107,13 +111,13 @@ class Test(ShowBase) :
 		self.cameraNode.setCompass()
 		self.curPlanet = 0
 		
-		log.info("Camera set up")
+		log.info("Camera is set up")
 		
 		self.filters = CommonFilters(base.win, base.cam)
 		filterok = self.filters.setBloom(
 			blend=(0, 0, 0, 1), desat=-0.5, intensity=3.0, size=1)
 		
-		log.info("Filters set up")
+		log.info("Filters are set up")
 		
 		self.setUpSkyBox()
 		
@@ -132,7 +136,7 @@ class Test(ShowBase) :
 		m = Material()
 		m.setEmission((1,1,1,0))
 		self.skybox.setMaterial(m)
-		log.info("Skybox set up")
+		log.info("Skybox is set up")
 	
 	def physTask(self, task) :
 		for o in self.bodies :
@@ -155,7 +159,7 @@ class Test(ShowBase) :
 					o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
 		self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		self.draw()
-		return Task.again
+		return Task.cont
 		
 	def controllTask(self, task) :
 	
@@ -251,7 +255,7 @@ class Test(ShowBase) :
 		self.cameraSelection = 0
 		self.lightSelection = 0
 		
-		log.info("Lights set up")
+		log.info("Lights are set up")
 		
 	def initText(self) :
 		self.speedText = OnscreenText(text = str(t) + ' seconds per tick [+/-]', pos = (-0.9, 0.9), scale = 0.07, fg = (1,1,1,1))
@@ -300,13 +304,15 @@ class Test(ShowBase) :
 		self.zoomSpeed = 0.03
 		self.setUpMouse()
 		
-		log.info("Controlls set up")
-	
+
+		log.info("Controls are set up")
 	def setKey(self, key, val) :
 		self.keys[key] = val
 	
 	def resetCamera(self) :
+
 		self.attachCamera(self.bodies[self.curPlanet].node)
+
 	
 	def attachCamera(self, node) :
 
@@ -329,17 +335,21 @@ class Test(ShowBase) :
 			
 			self.cameraNode.setScale(1)
 			self.cameraNode.setPos(0,0,0)
+			self.cameraNode.setScale(1)
 		
 	def logCamera(self):
 		log.info('camera')
 		log.info(camera.getPos())
 		log.info(camera.getHpr())
 		log.info('node')
-		log.info(self.cameraNode.getPos())
+		log.info(self.cameraNode.getPos(render))
 		log.info(self.cameraNode.getHpr())
 		log.info('skybox')
 		log.info(self.skybox.getPos())
 		log.info(self.skybox.getHpr())
+		log.info('waypoints')
+		for b in self.bodies:
+			log.info(len(b.wayPoints))
 
 		
 	def nextPlanet(self) :
@@ -449,9 +459,10 @@ class Test(ShowBase) :
 		
 		for b in self.bodies :
 			b.node.setScale(b.node.getScale()[0]*factor)
-		
+
 		self.cameraNode.setScale(1)
-		#camera.setPos(render, pos)
+		camera.setPos(render, pos)
+
 		
 		
 	def decScale(self) : 
@@ -459,21 +470,17 @@ class Test(ShowBase) :
 		global scale 
 		if scale >= factor :
 			scale//= factor
-
-			
-			pos = camera.getPos(render)
-			
-			for b in self.bodies :
-				b.node.setScale(b.node.getScale()[0]//factor)
-			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
-			
+		
 			pos = camera.getPos(render)
 			for b in self.bodies :
 				b.node.setScale(b.node.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
+			
 			
 			self.cameraNode.setScale(1)
-			#camera.setPos(render, pos)
+			camera.setPos(render, pos)
+
+
 	
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/planet_sphere')
@@ -487,6 +494,11 @@ class Test(ShowBase) :
 		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']), trlClr)
 		
 		self.bodies.append(body)
+	
+	def loadSimulation(self, n) :
+		file = open("simulations/{}.sim".format(n), 'r')
+		sim = pickle.load(file)
+		
 		
 
 test = Test()
