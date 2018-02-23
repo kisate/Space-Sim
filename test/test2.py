@@ -5,7 +5,7 @@ log = logging.getLogger(__name__)
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import AmbientLight, DirectionalLight, LightAttrib
-from panda3d.core import LVector3
+from panda3d.core import LVector3, Vec3D
 from direct.task import Task
 from direct.gui.OnscreenImage import OnscreenImage
 from panda3d.core import GeomVertexFormat, GeomVertexData, Geom, GeomNode, GeomLinestrips
@@ -21,13 +21,13 @@ import random
 import sys
 t = 10000
 g = 6.67408e-20
-tick = 1/100
+tick = 1/30
 geoms = 1500
 fov = 100
 
 scale = 1
-def getforce (o2, o1) :
-	k = o1.mass*o2.mass*g
+def getAcc (o2, o1) :
+	k = o2.mass*g
 	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
 	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
 
@@ -45,22 +45,21 @@ class Test(ShowBase) :
 		
 		log.info("Counting {} waipoints".format(geoms))
 		
-		for i in range(geoms):
-			for o in self.bodies :
+		# for i in range(geoms):
+			# for o in self.bodies :
                         
-				o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
+				# o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
 				
-				o.wayPoints.append(o.getPos())
+				# o.wayPoints.append(o.getPos())
 				
-				thpr = o.node.getHpr()
-				hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
-				o.node.setHpr(hpr[0], hpr[1], hpr[2])
-				for o2 in self.bodies :
-					if o2 != o :
-						f = getforce(o2, o)
-						a = numpy.divide(f, o.mass)
-						o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
-			if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
+				# thpr = o.node.getHpr()
+				# hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
+				# o.node.setHpr(hpr[0], hpr[1], hpr[2])
+				# for o2 in self.bodies :
+					# if o2 != o :
+						# a = getAcc(o2, o)
+						# o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
+			# if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
 		
 		
 		log.info("100.0%")
@@ -70,7 +69,8 @@ class Test(ShowBase) :
 		node.setTexture(loader.loadTexture('textures/sun2.jpg'))
 		self.bodies[0].setTemperature(2000)
 		#NodePath(self.gNode).setMaterial(m)
-		self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
+		#self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
+		self.taskMgr.add(self.physTask, 'PhysTask')
 		self.taskMgr.add(self.controllTask, 'ControllTask')
 		self.setUpKeys()
 		self.setUpCamera()
@@ -89,13 +89,17 @@ class Test(ShowBase) :
 		
 		node.setShaderOff()
         
+		self.farNode = render.attachNewNode('farNode')
+		self.farNode.setPos(0, 4.3e10, 0)
+
+		
 		log.info('Loading done')
 	
 	def setUpCamera(self) :
 		self.cameraNode = render.attachNewNode('cameraNode')
 		camera.reparentTo(self.cameraNode)
-		base.camLens.setFov(106)
-		base.camLens.setNearFar(0.1, 1e12)
+		base.camLens.setFov(100)
+		base.camLens.setFar(1e10)
 		
 		self.cameraNode.reparentTo(self.bodies[0].node)
 		self.cameraNode.lookAt(self.bodies[0].node)
@@ -135,13 +139,24 @@ class Test(ShowBase) :
 		log.info("Skybox set up")
 	
 	def physTask(self, task) :
+		
+		
 		for o in self.bodies :
             
-			o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
+			
+			pos = o.node.getPos(render)
+			pos = LVector3(pos.getX() + o.v[0]*t, pos.getY() + o.v[2]*t, pos.getZ() + o.v[2]*t)
+			
+			if pos[1] > self.farNode.getPos()[1]:
+				pos -= self.farNode.getPos()
+				log.info(pos)
+				o.node.reparentTo(self.farNode)
+			
+			o.node.setPos(pos)
 			
 			wps = o.wayPoints
             
-			wps.append(o.getPos())
+			wps.append(o.node.getPos(render))
 			
 			if(len(wps) > geoms) : wps.pop(0)
 			
@@ -150,8 +165,7 @@ class Test(ShowBase) :
 			o.node.setHpr(hpr[0], hpr[1], hpr[2])
 			for o2 in self.bodies :
 				if o2 != o :
-					f = getforce(o2, o)
-					a = numpy.divide(f, o.mass)
+					a = getAcc(o2, o)
 					o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
 		self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		self.draw()
@@ -162,11 +176,10 @@ class Test(ShowBase) :
 		d = camera.getDistance(self.cameraNode.parent)
 		
 		if self.keys['zoomIn'] :
-			if camera.getY()*(1-self.zoomSpeed) <= -2.0001 : 
-				camera.setY(camera.getY()*(1-self.zoomSpeed))
+			camera.setY(camera.getY()*0.9)
 		if self.keys['zoomOut']:
 			
-			camera.setY(camera.getY()*(1+self.zoomSpeed))
+			camera.setY(camera.getY()/0.9)
 		parent = self.cameraNode.getParent()
 		
 		if self.keys['fwd'] == 1:
@@ -232,10 +245,28 @@ class Test(ShowBase) :
 		return Task.cont
 	
 	def loadModels(self) : 
-		planets = ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
-		for x in planets :
-			self.addPlanet(x)		
-		log.info("Loaded models")
+		planet = loader.loadModel('models/planet_sphere')
+		planet.setTexture(loader.loadTexture('textures/sun.jpg'))
+		r = values.values['sun']['r']
+		
+		f = 1
+		
+		planet.setScale(r*f)
+		planet.reparentTo(render)
+		
+		trlClr = (random.random(), random.random(), random.random(), 1.0)
+		
+		pos = values.values['sun']['p']
+		v = values.values['sun']['v']
+		
+		body = Body(planet, values.values['sun']['m'], numpy.array([pos[0]*f, pos[1]*f, pos[2]*f]), numpy.array([v[0]*f, v[1]*f, v[2]*f]), numpy.array(values.values['sun']['av']), trlClr)
+		
+		vec = Vec3(1234567890, 0, 0)
+		log.info(LPoint3 == LPoint3d)
+		log.info(vec)
+		
+		self.bodies.append(body)
+		
 		
 	def setUpLights(self) : 
 		plight = PointLight('plight')
@@ -263,9 +294,9 @@ class Test(ShowBase) :
 		self.accept("escape", sys.exit)
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
-		self.accept('r', self.resetCamera)
+		self.accept('r', self.resetCam)
 		self.accept('y', self.detachCamera)
-		self.accept('i', self.logCamera)
+		self.accept('i', self.logCam)
 
 		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
 		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
@@ -297,18 +328,25 @@ class Test(ShowBase) :
 		self.lftStep = 0.1
 		self.rtStep = 0.1
 		
-		self.zoomSpeed = 0.03
 		self.setUpMouse()
 		
 		log.info("Controlls set up")
 	
+	def logCamera (self) :
+		log.info("Logging camera")
+		log.info(camera.getPos(render))
+		log.info(camera.getHpr(render))
+		log.info("Logging cameraNode")
+		log.info(self.cameraNode.getPos(render))
+		log.info(self.cameraNode.getHpr(render))
+	
 	def setKey(self, key, val) :
 		self.keys[key] = val
 	
-	def resetCamera(self) :
-		self.attachCamera(self.bodies[self.curPlanet].node)
+	def resetCam(self) :
+		self.attachCam(self.bodies[self.curPlanet].node)
 	
-	def attachCamera(self, node) :
+	def attachCam(self, node) :
 
 		if self.detached : 
 		
@@ -327,10 +365,10 @@ class Test(ShowBase) :
 			self.rotateX = self.cameraNode.getH()
 			self.rotateY = self.cameraNode.getP()
 			
-			self.cameraNode.setScale(1)
 			self.cameraNode.setPos(0,0,0)
+			self.cameraNode.setScale(1)
 		
-	def logCamera(self):
+	def logCam(self):
 		log.info('camera')
 		log.info(camera.getPos())
 		log.info(camera.getHpr())
@@ -340,20 +378,24 @@ class Test(ShowBase) :
 		log.info('skybox')
 		log.info(self.skybox.getPos())
 		log.info(self.skybox.getHpr())
+		
+		for b in self.bodies :
+			log.info(b.node.getPos(render))
+		
 
 		
 	def nextPlanet(self) :
 		if self.curPlanet < len(self.bodies) - 1 :
 			self.curPlanet += 1
 			self.detachCamera()
-			self.attachCamera(self.bodies[self.curPlanet].node)
+			self.attachCam(self.bodies[self.curPlanet].node)
 
 			
 	def prevPlanet(self) :
 		if self.curPlanet > 0 :
 			self.curPlanet -= 1
 			self.detachCamera()
-			self.attachCamera(self.bodies[self.curPlanet].node)
+			self.attachCam(self.bodies[self.curPlanet].node)
 			
 	def setUpMouse(self) :
 
@@ -449,9 +491,9 @@ class Test(ShowBase) :
 		
 		for b in self.bodies :
 			b.node.setScale(b.node.getScale()[0]*factor)
-		
+			
+		camera.setPos(render, pos)
 		self.cameraNode.setScale(1)
-		#camera.setPos(render, pos)
 		
 		
 	def decScale(self) : 
@@ -471,20 +513,26 @@ class Test(ShowBase) :
 			for b in self.bodies :
 				b.node.setScale(b.node.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
-			
+
+			camera.setPos(render, pos)
 			self.cameraNode.setScale(1)
-			#camera.setPos(render, pos)
 	
 	def addPlanet(self, name):
 		planet = loader.loadModel('models/planet_sphere')
 		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
 		r = values.values[name]['r']*scale
-		planet.setScale(r)
+		
+		f = 1
+		
+		planet.setScale(r*f)
 		planet.reparentTo(render)
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		body = Body(planet, values.values[name]['m'], numpy.array(values.values[name]['p']), numpy.array(values.values[name]['v']), numpy.array(values.values[name]['av']), trlClr)
+		pos = values.values[name]['p']
+		v = values.values[name]['v']
+		
+		body = Body(planet, values.values[name]['m'], numpy.array([pos[0]*f, pos[1]*f, pos[2]*f]), numpy.array([v[0]*f, v[1]*f, v[2]*f]), numpy.array(values.values[name]['av']), trlClr)
 		
 		self.bodies.append(body)
 		
