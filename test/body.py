@@ -1,5 +1,11 @@
 import numpy
 import math
+
+import sys
+
+sys.path.append(r"C:\Users\Dima\Downloads\panda3d-master (2)\panda3d-master\built_x64")
+sys.path.append(r"C:\Users\Dima\Downloads\panda3d-master (2)\panda3d-master\built_x64\lib")
+
 from panda3d.core import Geom, Vec4, Material
 class Body :
 	def __init__ (self, n, m, p = numpy.array([0,0,0]), v = numpy.array([0,0,0]), av = numpy.array([0,0,0]), trlClr = (1, 1, 1, 1), t = 0):

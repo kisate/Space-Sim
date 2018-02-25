@@ -2,6 +2,11 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
+import sys
+
+sys.path.append(r"C:\Users\Dima\Downloads\panda3d-master (2)\panda3d-master\built_x64")
+sys.path.append(r"C:\Users\Dima\Downloads\panda3d-master (2)\panda3d-master\built_x64\lib")
+
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import AmbientLight, DirectionalLight, LightAttrib
@@ -19,7 +24,8 @@ import numpy
 from body import Body
 import values
 import random
-import sys
+
+
 import pickle
 t = 10000
 G = 6.67408e-20
@@ -166,8 +172,7 @@ class Test(ShowBase) :
 		d = camera.getDistance(self.cameraNode.parent)
 		
 		if self.keys['zoomIn'] :
-			if camera.getY()*(1-self.zoomSpeed) <= -2.0001 : 
-				camera.setY(camera.getY()*(1-self.zoomSpeed))
+			camera.setY(min(camera.getY()*(1-self.zoomSpeed), -1.1))
 		if self.keys['zoomOut']:
 			
 			camera.setY(camera.getY()*(1+self.zoomSpeed))
