@@ -26,24 +26,22 @@ import random
 
 
 import pickle
-t = 10000
+t = 1000
 G = 6.67408e-20
 geoms = 1500
 fov = 100
 tick = 1/100
 scale = 1
-def getForce (o2, o1) :
+def getImpulse (o2, o1) :
 	k = o1.rbnode.getMass()*o2.rbnode.getMass()*G
 	
 	r = o1.node.getPos() - o2.node.getPos()
 	
+	d = k/(VBase3(r).length())**3
+	
 	x, y, z = r.getX(), r.getY(), r.getZ()
 	
-	if x != 0.0 : x = copysign(x, k/x**2)
-	if y != 0.0 : y = copysign(y, k/y**2)
-	if z != 0.0 : z = copysign(z, k/z**2)
-	
-	return Vec3(x,y,z)
+	return Vec3(-x*t*d,-y*t*d,-z*t*d)
 	
 	
 	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
@@ -61,7 +59,7 @@ class Test(ShowBase) :
 		self.massScale = 1e19
 		
 		global G
-		G*self.massScale
+		G*=self.massScale
 		
 		self.world = BulletWorld()
 		
@@ -69,24 +67,28 @@ class Test(ShowBase) :
 		
 		log.info("Counting {} waypoints".format(geoms))
 		
-		# for i in range(geoms):
-			# for o in self.bodies :
-                        
-				# o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
-				
-				# o.wayPoints.append(o.getPos())
-				
-				# thpr = o.node.getHpr()
-				# hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
-				# o.node.setHpr(hpr[0], hpr[1], hpr[2])
-				# for o2 in self.bodies :
-					# if o2 != o :
-						# f = getforce(o2, o)
-						# a = numpy.divide(f, o.mass)
-						# o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
-			# if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
-		
 		self.counter = 0
+		
+		for i in range(geoms):
+			for o in self.bodies :			
+				for o2 in self.bodies :
+					if o2 != o :
+						imp = getImpulse(o2, o)
+						o.rbnode.applyCentralImpulse(imp)
+					self.counter+=1
+			#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
+			self.world.doPhysics(t, 10, t/10)
+			
+			for o in self.bodies : 
+				wps = o.wayPoints
+				
+				wps.append(o.node.getPos())
+				
+				if(len(wps) > geoms) : wps.pop(0)
+			if i % 30 == 0 :
+				log.info("{:.02}%".format(i/geoms*100))
+		
+		
 		
 		log.info("100.0%")
 		
@@ -161,25 +163,23 @@ class Test(ShowBase) :
 		log.info("Skybox is set up")
 	
 	def physTask(self, task) :
-		for o in self.bodies :
-            	
+	
+		for o in self.bodies :			
+			for o2 in self.bodies :
+				if o2 != o :
+					imp = getImpulse(o2, o)
+					o.rbnode.applyCentralImpulse(imp)
+				self.counter+=1
+		#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
+		self.world.doPhysics(t, 10, t/10)
+		
+		for o in self.bodies : 
 			wps = o.wayPoints
             
 			wps.append(o.node.getPos())
 			
 			if(len(wps) > geoms) : wps.pop(0)
-			
-			o.rbnode.clearForces()
-			for o2 in self.bodies :
-				if o2 != o :
-					f = getForce(o2, o)
-					o.rbnode.applyCentralForce(f)
-					if self.counter % 50 == 0 :
-						log.info(o.rbnode.getLinearVelocity())
-						log.info(f)
-			self.counter+=1
-		#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
-		self.world.doPhysics(t, 10, t//10)
+		
 		self.draw()
 		
 		return Task.cont
@@ -258,8 +258,7 @@ class Test(ShowBase) :
 		return Task.cont
 	
 	def loadModels(self) : 
-		planets = ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
-		for x in planets :
+		for x in values.values.keys() :
 			self.addPlanet(x)		
 		log.info("Loaded models")
 		
