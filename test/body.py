@@ -1,19 +1,15 @@
 import numpy
 import math
 
-import sys
-
-sys.path.append(r"C:\Users\Dima\Downloads\panda3d-master (2)\panda3d-master\built_x64")
-sys.path.append(r"C:\Users\Dima\Downloads\panda3d-master (2)\panda3d-master\built_x64\lib")
+import importPanda
 
 from panda3d.core import Geom, Vec4, Material
 class Body :
-	def __init__ (self, n, m, p = numpy.array([0,0,0]), v = numpy.array([0,0,0]), av = numpy.array([0,0,0]), trlClr = (1, 1, 1, 1), t = 0):
-		self.mass = m
-		self.node = n
-		self.v = v
-		self.av = av
-		self.setPos(p)
+	def __init__ (self, model, node, rbnode, trlClr = (1, 1, 1, 1), t = 0):
+		self.model = model
+		self.node = node
+		self.rbnode = rbnode
+	
 		self.wayPoints = []
 		self.trlClr = trlClr
 		self.setTemperature(t)
@@ -23,19 +19,17 @@ class Body :
 		
 		if t >= 100 :
 			c = self.getColor()
-			self.node.setColorScale((0,0,0,1))
+			self.model.setColorScale((0,0,0,1))
 			m = Material()
 			m.setEmission(c)
-			self.node.setMaterial(m)
+			self.model.setMaterial(m)
 		else :
-			self.node.setColorScale((1,1,1,1))
-			self.node.clearMaterial()
+			self.model.setColorScale((1,1,1,1))
+			self.model.clearMaterial()
 		
-	def setPos (self, p, move = True) :
-		self.pos = p
-		if move : self.node.setPos(p[0],p[1],p[2])
-	def getPos (self) :
-		return self.node.getPos()
+	
+	
+	
 	def getColor(self):
 		temp = self.temperature/100
 		r, g, b = 0, 0, 0
