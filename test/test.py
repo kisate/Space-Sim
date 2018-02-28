@@ -21,17 +21,30 @@ from panda3d.bullet import BulletWorld, BulletSphereShape, BulletRigidBodyNode
 from math import pi, sin, cos, copysign
 import numpy
 from body import Body
-import values
+import simulations
 import random
 
+import argparse
 
 import pickle
 t = 1000
 G = 6.67408e-20
-geoms = 1500
+
 fov = 100
 tick = 1/100
 scale = 1
+
+parser = argparse.ArgumentParser(description='Load simulation.')
+parser.add_argument('--geoms', metavar='wpts', type=int,
+                   help='number of trajectory points', default=1500)
+parser.add_argument('--simulation', dest='simulation',
+                   help='name of simulation to load', default='sim1')
+				   
+args = parser.parse_args()
+
+geoms = args.geoms
+simulation = args.simulation
+
 def getImpulse (o2, o1) :
 	k = o1.rbnode.getMass()*o2.rbnode.getMass()*G
 	
@@ -63,7 +76,7 @@ class Test(ShowBase) :
 		
 		self.world = BulletWorld()
 		
-		self.loadModels()
+		self.loadModels(simulations.simulations[simulation])
 		
 		log.info("Counting {} waypoints".format(geoms))
 		
@@ -84,18 +97,14 @@ class Test(ShowBase) :
 				
 				wps.append(o.node.getPos())
 				
-				if(len(wps) > geoms) : wps.pop(0)
+				#if(len(wps) > geoms) : wps.pop(0)
 			if i % 30 == 0 :
-				log.info("{:.02}%".format(i/geoms*100))
+				log.info("{0:2f}%".format(i/geoms*100))
 		
 		
 		
 		log.info("100.0%")
 		
-		model = self.bodies[0].model
-		
-		model.setTexture(loader.loadTexture('textures/sun2.jpg'))
-		self.bodies[0].setTemperature(6500)
 		#NodePath(self.gNode).setMaterial(m)
 		self.taskMgr.add(self.physTask, 'PhysTask')
 		self.taskMgr.add(self.controllTask, 'ControllTask')
@@ -114,7 +123,7 @@ class Test(ShowBase) :
 		self.setUpLights()
 		#self.taskMgr.doMethodLater(tick, self.drawTask, "DrawTask")
 		
-		model.setShaderOff()
+		#self.bodies[0].model.setShaderOff()
         
 		log.info('Loading done')
 	
@@ -257,16 +266,16 @@ class Test(ShowBase) :
 
 		return Task.cont
 	
-	def loadModels(self) : 
-		for x in values.values.keys() :
-			self.addPlanet(x)		
+	def loadModels(self, simulation) : 
+		for x in simulation.keys() :
+			self.addPlanet(x, simulation)		
 		log.info("Loaded models")
 		
 	def setUpLights(self) : 
 		plight = PointLight('plight')
 		plight.setColor(VBase4( 3, 3, 3, 1))
 		plnp = render.attachNewNode(plight)
-		plnp.setPos(0, 0, 0)
+		plnp.reparentTo(self.bodies[0].model)
 		render.setLight(plnp)
 
 		# Important! Enable the shader generator.
@@ -476,7 +485,7 @@ class Test(ShowBase) :
 		pos = camera.getPos(render)
 		
 		for b in self.bodies :
-			b.model.setScale(b.node.getScale()[0]*factor)
+			b.model.setScale(b.model.getScale()[0]*factor)
 
 		self.cameraNode.setScale(1)
 		camera.setPos(render, pos)
@@ -491,7 +500,7 @@ class Test(ShowBase) :
 		
 			pos = camera.getPos(render)
 			for b in self.bodies :
-				b.model.setScale(b.node.getScale()[0]//factor)
+				b.model.setScale(b.model.getScale()[0]//factor)
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
 			
 			
@@ -500,18 +509,21 @@ class Test(ShowBase) :
 
 
 	
-	def addPlanet(self, name):
+	def addPlanet(self, name, simulation):
+	
+		mass = simulation[name]['m']
+		pos = simulation[name]['p']
+		vel = simulation[name]['v']
+		avel = simulation[name]['av']
+		temperature = simulation[name]['temperature']
+		r = simulation[name]['r']*scale
+		
 		model = loader.loadModel('models/planet_sphere')
-		model.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']*scale
+		model.setTexture(loader.loadTexture(simulation[name]['texture']))
+		
 		model.setScale(r)
 		
 		shape = BulletSphereShape(r)
-		
-		mass = values.values[name]['m']
-		pos = values.values[name]['p']
-		vel = values.values[name]['v']
-		avel = values.values[name]['av']
 		        
 		rbnode = BulletRigidBodyNode(name)
 		rbnode.addShape(shape)
@@ -529,7 +541,7 @@ class Test(ShowBase) :
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		body = Body(model, node, rbnode, trlClr)
+		body = Body(model, node, rbnode, trlClr, temperature)
 		
 		self.bodies.append(body)
 	

@@ -17,15 +17,17 @@ class Body :
 	def setTemperature(self, t):
 		self.temperature = t
 		
-		if t >= 100 :
+		if t >= 500 :
 			c = self.getColor()
 			self.model.setColorScale((0,0,0,1))
 			m = Material()
 			m.setEmission(c)
 			self.model.setMaterial(m)
+			self.model.setShaderOff()
 		else :
 			self.model.setColorScale((1,1,1,1))
 			self.model.clearMaterial()
+			self.model.setShaderAuto()
 		
 	
 	
