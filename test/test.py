@@ -27,7 +27,7 @@ import random
 import argparse
 
 import pickle
-t = 1000
+t = 10000
 G = 6.67408e-20
 
 fov = 100
@@ -37,7 +37,7 @@ scale = 1
 parser = argparse.ArgumentParser(description='Load simulation.')
 parser.add_argument('--geoms', metavar='wpts', type=int,
                    help='number of trajectory points', default=1500)
-parser.add_argument('--simulation', dest='simulation',
+parser.add_argument('--sim                                                                                                             ', dest='simulation',
                    help='name of simulation to load', default='sim1')
 				   
 args = parser.parse_args()
@@ -98,8 +98,8 @@ class Test(ShowBase) :
 				wps.append(o.node.getPos())
 				
 				#if(len(wps) > geoms) : wps.pop(0)
-			if i % 30 == 0 :
-				log.info("{0:2f}%".format(i/geoms*100))
+			if i % 50 == 0 :
+				log.info("{0:.2f}%".format(i/geoms*100))
 		
 		
 		
