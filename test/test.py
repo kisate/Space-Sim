@@ -28,7 +28,7 @@ import argparse
 
 import pickle
 t = 10000
-G = 6.67408e-20
+G = 0
 
 fov = 100
 tick = 1/100
@@ -37,11 +37,13 @@ scale = 1
 parser = argparse.ArgumentParser(description='Load simulation.')
 parser.add_argument('--geoms', metavar='wpts', type=int,
                    help='number of trajectory points', default=1500)
-parser.add_argument('--sim                                                                                                             ', dest='simulation',
+parser.add_argument('--sim', dest='simulation',
                    help='name of simulation to load', default='sim1')
+parser.add_argument('--igeoms', dest='igeoms', type=int,
+                   help='number of trajectory points to calculate before simulation', default=1500)
 				   
 args = parser.parse_args()
-
+igeoms = args.igeoms
 geoms = args.geoms
 simulation = args.simulation
 
@@ -82,7 +84,7 @@ class Test(ShowBase) :
 		
 		self.counter = 0
 		
-		for i in range(geoms):
+		for i in range(igeoms):
 			for o in self.bodies :			
 				for o2 in self.bodies :
 					if o2 != o :
@@ -99,7 +101,7 @@ class Test(ShowBase) :
 				
 				#if(len(wps) > geoms) : wps.pop(0)
 			if i % 50 == 0 :
-				log.info("{0:.2f}%".format(i/geoms*100))
+				log.info("{0:.2f}%".format(i/igeoms*100))
 		
 		
 		
@@ -113,6 +115,8 @@ class Test(ShowBase) :
 		
 		self.initText()
 
+		self.counters = [0]
+		
 		self.gNode = GeomNode("Trails")
 		NodePath(self.gNode).reparentTo(render)
 		alight = AmbientLight('pathLight')
@@ -171,6 +175,11 @@ class Test(ShowBase) :
 		self.skybox.setMaterial(m)
 		log.info("Skybox is set up")
 	
+	def countEnergy(self, o) :
+		mass = o.rbnode.getMass()
+		El = mass*self.massScale/2*o.rbnode.getLinearVelocity().length()**2
+		Er = mass*0.2*self.massScale*o.radius**2*o.rbnode.getAngularVelocity().length()**2
+		return El + Er
 	def physTask(self, task) :
 	
 		for o in self.bodies :			
@@ -178,8 +187,14 @@ class Test(ShowBase) :
 				if o2 != o :
 					imp = getImpulse(o2, o)
 					o.rbnode.applyCentralImpulse(imp)
-				self.counter+=1
 		#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
+		self.counters[0]+=1
+		if self.counters[0] % 10 ==  0: 
+			s = 0
+			for o in self.bodies:
+				s += self.countEnergy(o)
+			log.info(s)
+		
 		self.world.doPhysics(t, 10, t/10)
 		
 		for o in self.bodies : 
@@ -267,8 +282,10 @@ class Test(ShowBase) :
 		return Task.cont
 	
 	def loadModels(self, simulation) : 
-		for x in simulation.keys() :
+		for x in simulation['objects'].keys() :
 			self.addPlanet(x, simulation)		
+		global t 
+		t = simulation['time']
 		log.info("Loaded models")
 		
 	def setUpLights(self) : 
@@ -510,16 +527,18 @@ class Test(ShowBase) :
 
 	
 	def addPlanet(self, name, simulation):
-	
-		mass = simulation[name]['m']
-		pos = simulation[name]['p']
-		vel = simulation[name]['v']
-		avel = simulation[name]['av']
-		temperature = simulation[name]['temperature']
-		r = simulation[name]['r']*scale
+		
+		objects = simulation['objects']
+		
+		mass = objects[name]['m']
+		pos = objects[name]['p']
+		vel = objects[name]['v']
+		avel = objects[name]['av']
+		temperature = objects[name]['temperature']
+		r = objects[name]['r']*scale
 		
 		model = loader.loadModel('models/planet_sphere')
-		model.setTexture(loader.loadTexture(simulation[name]['texture']))
+		model.setTexture(loader.loadTexture(objects[name]['texture']))
 		
 		model.setScale(r)
 		
@@ -528,6 +547,7 @@ class Test(ShowBase) :
 		rbnode = BulletRigidBodyNode(name)
 		rbnode.addShape(shape)
 		rbnode.setMass(mass/self.massScale)
+		#rbnode.setRestitution(0.5)
 		
 		rbnode.setLinearVelocity(Vec3(*vel))
 		rbnode.setAngularVelocity(Vec3(*avel))
@@ -541,7 +561,7 @@ class Test(ShowBase) :
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		body = Body(model, node, rbnode, trlClr, temperature)
+		body = Body(model, node, rbnode, r, trlClr, temperature)
 		
 		self.bodies.append(body)
 	
