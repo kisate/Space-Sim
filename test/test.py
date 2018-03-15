@@ -143,8 +143,8 @@ class Test(ShowBase) :
 		
 		camera.setY(-5);
 		
-		self.cameraNode.setP(90);
-		self.rotateY = 90;
+		self.cameraNode.setP(-90);
+		self.rotateY = -90;
 		self.cameraNode.setCompass()
 		self.curPlanet = 0
 		
@@ -317,6 +317,9 @@ class Test(ShowBase) :
 		self.accept('r', self.resetCamera)
 		self.accept('y', self.detachCamera)
 		self.accept('i', self.logCamera)
+		self.accept('u', self.logSomething)
+		self.accept('1', self.debugFunction)
+		self.accept('2', self.debugFunction2)
 
 		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
 		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
@@ -569,6 +572,23 @@ class Test(ShowBase) :
 		file = open("simulations/{}.sim".format(n), 'r')
 		sim = pickle.load(file)
 		
+	def logSomething(self):
+		for o in self.bodies :
+			log.info(o.rbnode.getInertia())
+	def debugFunction(self):
+		for o in self.bodies :
+			
+			
+			o.rbnode.setLinearVelocity(Vec3(0,0,0))
+			log.info(o.rbnode.isActive())
+			log.info('debug1')
+	def debugFunction2(self):
+		for o in self.bodies :
+			log.info(o.rbnode.getLinearVelocity())
+			o.rbnode.setDeactivationTime(10000)
+			o.rbnode.setLinearVelocity(Vec3(1,0,0))
+			log.info(o.rbnode.getLinearVelocity())
+			log.info('debug2')
 		
 
 test = Test()

@@ -1,3 +1,4 @@
+from math import pi
 rad = 57.2958
 x = 1
 simulations = {
@@ -22,4 +23,10 @@ simulations = {
 'earth' : {'m' : 5.97e+24, 'r' : 6371, 'p' : [2000,1e5,0], 'v' : [0,-100,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'}
 },
 'time' : 10
+},
+'sim3' : {
+'objects' : {
+'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [1,0,0], 'av' : [0,0,2*pi/60], 'temperature' : 6500, 'texture' : 'textures/earth.jpg'}
+},
+'time' : 1
 }}
