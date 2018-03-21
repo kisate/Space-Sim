@@ -62,8 +62,9 @@ class Test(ShowBase) :
 		proj.node().showFrustum()
 		proj.find('frustum').setColor(1, 0, 0, 1)
 		proj.reparentTo(self.sun1)
-		proj.setPos(0, -2, 0)
+		proj.setPos(0, -10, 0)
 		self.sun1.setP(-45)
+		
 		
 		i = proj.posInterval(5, VBase3(-1, 0, 0))
 		#i.loop()
@@ -74,7 +75,7 @@ class Test(ShowBase) :
 		tex.setBorderColor(VBase4(1, 1, 1, 0))
 		ts = TextureStage('ts')
 		ts.setSort(1)
-		ts.setMode(TextureStage.MModulate)
+		ts.setMode(TextureStage.MDecal)
 		self.sun1.projectTexture(ts, tex, proj)
 		 
 		base.disableMouse()
@@ -105,7 +106,7 @@ class Test(ShowBase) :
 		self.accept('i', self.log)
 
 	def spinTask(self, task):
-		self.sun1.setH(self.sun1, 0)
+		self.sun1.setH(self.sun1, 1)
 		self.sun2.setH(self.sun2, 0)
 		# self.sun1.setTexScale(self.ts, self.counter, self.counter)
 		# self.sun1.setTexOffset(self.ts, 1 - self.counter, 1 - self.counter)
