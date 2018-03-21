@@ -2,540 +2,180 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
-from panda3d.core import *
+import importPanda
+
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import AmbientLight, DirectionalLight, LightAttrib
-from panda3d.core import LVector3, Vec3D
-from direct.task import Task
-from direct.gui.OnscreenImage import OnscreenImage
-from panda3d.core import GeomVertexFormat, GeomVertexData, Geom, GeomNode, GeomLinestrips
-from panda3d.core import Material, WindowProperties, MouseButton
-from direct.gui.OnscreenText import OnscreenText
-from direct.interval.LerpInterval import LerpPosInterval
+from panda3d.core import Filename, Shader
+from panda3d.core import PandaNode, NodePath
+from panda3d.core import AmbientLight, PointLight, VBase4
+from panda3d.core import TextNode, LPoint3
+from direct.showbase.DirectObject import DirectObject
 from direct.filter.CommonFilters import CommonFilters
-from math import pi, sin, cos
-import numpy
-from body import Body
-import values
-import random
+from direct.gui.OnscreenText import OnscreenText
+from direct.gui.OnscreenImage import OnscreenImage
+from direct.actor.Actor import Actor
+from panda3d.core import Material
+from pandac.PandaModules import *
+from direct.task import Task
+import math
 import sys
-t = 10000
-g = 6.67408e-20
-tick = 1/30
-geoms = 1500
-fov = 100
+import os
 
-scale = 1
-def getAcc (o2, o1) :
-	k = o2.mass*g
-	d = k/numpy.linalg.norm(numpy.subtract(o2.pos, o1.pos))**3
-	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
+# Function to put instructions on the screen.
+def addInstructions(pos, msg):
+	return OnscreenText(text=msg, style=1, fg=(1, 1, 1, 1),
+						parent=base.a2dTopLeft, align=TextNode.ALeft,
+						pos=(0.08, -pos - 0.04), scale=.05)
 
-class Test(ShowBase) :
-	def __init__ (self):
-		log.info('Loading started')
-		log.info('Initiallizing engine')
+# Function to put title on the screen.
+def addTitle(text):
+	return OnscreenText(text=text, style=1, fg=(1, 1, 1, 1),
+						parent=base.a2dBottomRight, align=TextNode.ARight,
+						pos=(-1, 1), scale=.08)
+
+
+class Test(ShowBase):
+	def __init__(self):
+		# Initialize the ShowBase class from which we inherit, which will
+		# create a window and set up everything we need for rendering into it.
 		ShowBase.__init__(self)
-		self.gNode = GeomNode('gnode')
-		n = render.attachNewNode(self.gNode)
-		self.bodies = []
-			
-		
-		self.loadModels()
-		
-		log.info("Counting {} waipoints".format(geoms))
-		
-		# for i in range(geoms):
-			# for o in self.bodies :
-                        
-				# o.setPos(numpy.sum([o.pos, numpy.multiply(t, o.v)], axis = 0))
-				
-				# o.wayPoints.append(o.getPos())
-				
-				# thpr = o.node.getHpr()
-				# hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
-				# o.node.setHpr(hpr[0], hpr[1], hpr[2])
-				# for o2 in self.bodies :
-					# if o2 != o :
-						# a = getAcc(o2, o)
-						# o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
-			# if i % 100 == 0 : log.info("{0:.2f}%".format(i/geoms*100))
-		
-		
-		log.info("100.0%")
-		
-		node = self.bodies[0].node
-		
-		node.setTexture(loader.loadTexture('textures/sun2.jpg'))
-		self.bodies[0].setTemperature(2000)
-		#NodePath(self.gNode).setMaterial(m)
-		#self.taskMgr.doMethodLater(tick, self.physTask, 'PhysTask')
-		self.taskMgr.add(self.physTask, 'PhysTask')
-		self.taskMgr.add(self.controllTask, 'ControllTask')
-		self.setUpKeys()
-		self.setUpCamera()
-		
-		self.initText()
 
-		self.gNode = GeomNode("Trails")
-		NodePath(self.gNode).reparentTo(render)
-		alight = AmbientLight('pathLight')
-		alight.setColor(VBase4(1, 1, 1, 1))
-		self.pathLight = render.attachNewNode(alight)
-		NodePath(self.gNode).setLight(self.pathLight)
-		NodePath(self.gNode).reparentTo(render)
-		self.setUpLights()
-		#self.taskMgr.doMethodLater(tick, self.drawTask, "DrawTask")
+		base.disableMouse()
+		#base.setBackgroundColor(1, 1, 1)
+		camera.setPos(0, -50, 0)
+		# Check video card capabilities.
+		if not base.win.getGsg().getSupportsBasicShaders():
+			addTitle(
+				"Glow Filter: Video driver reports that Cg shaders are not supported.")
+			return
 		
-		node.setShaderOff()
-        
-		self.farNode = render.attachNewNode('farNode')
-		self.farNode.setPos(0, 4.3e10, 0)
+		
+		
+		# Use class 'CommonFilters' to enable a bloom filter.
+		# The brightness of a pixel is measured using a weighted average
+		# of R,G,B,A.  We put all the weight on Alpha, meaning that for
+		# us, the framebuffer's alpha channel alpha controls bloom.
 
-		
-		log.info('Loading done')
-	
-	def setUpCamera(self) :
-		self.cameraNode = render.attachNewNode('cameraNode')
-		camera.reparentTo(self.cameraNode)
-		base.camLens.setFov(100)
-		base.camLens.setFar(1e10)
-		
-		self.cameraNode.reparentTo(self.bodies[0].node)
-		self.cameraNode.lookAt(self.bodies[0].node)
-		
-		camera.setY(-5);
-		
-		self.cameraNode.setP(90);
-		self.rotateY = 90;
-		self.cameraNode.setCompass()
-		self.curPlanet = 0
-		
-		log.info("Camera set up")
-		
 		self.filters = CommonFilters(base.win, base.cam)
 		filterok = self.filters.setBloom(
 			blend=(0, 0, 0, 1), desat=-0.5, intensity=3.0, size=1)
-		
-		log.info("Filters set up")
-		
-		self.setUpSkyBox()
-		
-		
-	def setUpSkyBox(self):
-		self.skybox = loader.loadModel("models/planet_sphere")
-		self.skybox.setTexture(loader.loadTexture("textures/sky.jpg"))
-		self.skybox.reparentTo(camera)
-		self.skybox.setShaderOff()
-		self.skybox.setLightOff()
-		self.skybox.setTwoSided(True)
-		self.skybox.setBin('background', 10)
-		self.skybox.setDepthWrite(0)
-		self.skybox.setScale(20000)
-		self.skybox.setCompass()
-		m = Material()
-		m.setEmission((1,1,1,0))
-		self.skybox.setMaterial(m)
-		log.info("Skybox set up")
-	
-	def physTask(self, task) :
-		
-		
-		for o in self.bodies :
-            
-			
-			pos = o.node.getPos(render)
-			pos = LVector3(pos.getX() + o.v[0]*t, pos.getY() + o.v[2]*t, pos.getZ() + o.v[2]*t)
-			
-			if pos[1] > self.farNode.getPos()[1]:
-				pos -= self.farNode.getPos()
-				log.info(pos)
-				o.node.reparentTo(self.farNode)
-			
-			o.node.setPos(pos)
-			
-			wps = o.wayPoints
-            
-			wps.append(o.node.getPos(render))
-			
-			if(len(wps) > geoms) : wps.pop(0)
-			
-			thpr = o.node.getHpr()
-			hpr = numpy.sum([numpy.array([thpr[0],thpr[1],thpr[2]]), numpy.multiply(t, o.av)], axis = 0)
-			o.node.setHpr(hpr[0], hpr[1], hpr[2])
-			for o2 in self.bodies :
-				if o2 != o :
-					a = getAcc(o2, o)
-					o.v = numpy.sum([o.v, numpy.multiply(t, a)], axis = 0)
-		self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
-		self.draw()
-		return Task.again
-		
-	def controllTask(self, task) :
-	
-		d = camera.getDistance(self.cameraNode.parent)
-		
-		if self.keys['zoomIn'] :
-			camera.setY(camera.getY()*0.9)
-		if self.keys['zoomOut']:
-			
-			camera.setY(camera.getY()/0.9)
-		parent = self.cameraNode.getParent()
-		
-		if self.keys['fwd'] == 1:
-		
-			self.detachCamera()
-			camera.setY(camera, self.fwdStep)
-			
-			self.fwdStep *= 1.01
-		
-		else : self.fwdStep = 0.1
-		
-		if self.keys['bwd'] == 1:
-		
-			self.detachCamera()
-			camera.setY(camera, -self.bwdStep)
-			
-			self.bwdStep *= 1.01
-		
-		else : self.bwdStep = 0.1
-			
-		if self.keys['lft'] == 1:
-		
-			self.detachCamera()
-			camera.setX(camera, -self.lftStep)
-			self.lftStep *= 1.01
-		
-		else : self.lftStep = 0.1
-			
-		if self.keys['rt'] == 1:
-		
-			self.detachCamera()
-			camera.setX(camera, self.rtStep)
-			self.rtStep *= 1.01
-		
-		else : self.rtStep = 0.1
-		
-		if self.keys['lft'] == 1:
-		
-			self.detachCamera()
-			camera.setX(camera, -self.lftStep)
-			self.lftStep *= 1.01
-		
-		else : self.lftStep = 0.1
-		
-		global t;		
-		
-		if self.keys['incSpeed'] == 1:
-			t*=self.accFactor;
-			self.accFactor*=1.001
-			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
-		
-		if self.keys['incSpeed'] == 0 :
-			self.accFactor = 1.01
-		
-		if self.keys['decSpeed'] == 1:
-			t/=self.decFactor;
-			self.decFactor*=1.001
-			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
-			
-		if self.keys['decSpeed'] == 0 :
-			self.decFactor = 1.01
+		if (filterok == False):
+			addTitle(
+				"Toon Shader: Video card not powerful enough to do image postprocessing")
+			return
+		self.glowSize = 1
 
-		return Task.cont
-	
-	def loadModels(self) : 
-		planet = loader.loadModel('models/planet_sphere')
-		planet.setTexture(loader.loadTexture('textures/sun.jpg'))
-		r = values.values['sun']['r']
 		
-		f = 1
-		
-		planet.setScale(r*f)
-		planet.reparentTo(render)
-		
-		trlClr = (random.random(), random.random(), random.random(), 1.0)
-		
-		pos = values.values['sun']['p']
-		v = values.values['sun']['v']
-		
-		body = Body(planet, values.values['sun']['m'], numpy.array([pos[0]*f, pos[1]*f, pos[2]*f]), numpy.array([v[0]*f, v[1]*f, v[2]*f]), numpy.array(values.values['sun']['av']), trlClr)
-		
-		vec = Vec3(1234567890, 0, 0)
-		log.info(LPoint3 == LPoint3d)
-		log.info(vec)
-		
-		self.bodies.append(body)
+		self.t = 1000
+		c = self.getColor()
 		
 		
-	def setUpLights(self) : 
-		plight = PointLight('plight')
-		plight.setColor(VBase4( 3, 3, 3, 1))
-		plnp = render.attachNewNode(plight)
-		plnp.setPos(0, 0, 0)
-		render.setLight(plnp)
-
-		# Important! Enable the shader generator.
+		
+		
+		self.sun1 = Actor()
+		self.sun1.loadModel("models/planet_sphere")
+		self.sun1.setTexture(loader.loadTexture('textures/earth.jpg'))
+		# self.sun1.setColorScale((0,0,0,0.9))
+		# m = Material()
+		# m.setEmission(c)
+		#self.sun1.setMaterial(m)
+		self.sun1.setPos(0,0,0)
+		self.sun1.setScale(1000)
+		self.sun1.reparentTo(render)
+		
+		camera.reparentTo(self.sun1)
+		camera.setY(-10)
+		camera.setCompass(render)
+		
+		
+		
+		ts = TextureStage('ts')
+		ts.setMode(TextureStage.MAdd)
+		tex = loader.loadTexture('textures/tex.png')
+		self.sun1.setTexture(ts, tex)
+		self.sun1.setTexScale(ts, 1, 1)
+		
+		self.isRunning = False
+		
+		self.accept("space", self.toggleGlow)
+		self.accept("enter", self.toggleDisplay)
+		self.accept("+", self.incTemp)
+		self.accept("-", self.decTemp)
+		self.accept("escape", sys.exit, [0])
+		
 		render.setShaderAuto()
-
-		# default values
-		self.cameraSelection = 0
-		self.lightSelection = 0
 		
-		log.info("Lights set up")
+		self.sun1.setShaderAuto()
 		
-	def initText(self) :
-		self.speedText = OnscreenText(text = str(t) + ' seconds per tick [+/-]', pos = (-0.9, 0.9), scale = 0.07, fg = (1,1,1,1))
-		self.scaleText = OnscreenText(text = 'scale : 1 [Z/X]', pos = (-0.9, 0.8), scale = 0.07, fg = (1,1,1,1))
 		
-	def setUpKeys(self) :
-	
-		self.keys = {'zoomIn' : 0, 'zoomOut' : 0, 'fwd' : 0, 'bwd' : 0, 'lft' : 0, 'rt' : 0, 'incSpeed' : 0, 'decSpeed' : 0}
-		self.accept("escape", sys.exit)
-		self.accept("z", self.incScale)
-		self.accept("x", self.decScale)
-		self.accept('r', self.resetCam)
-		self.accept('y', self.detachCamera)
-		self.accept('i', self.logCam)
-
-		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
-		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
-		self.accept('arrow_down', self.setKey, ['zoomOut', 1])
-		self.accept('arrow_down-up', self.setKey, ['zoomOut', 0])
+		self.taskMgr.doMethodLater(0.05, self.spinTask, 'PhysTask')
 		
-		self.accept("+", self.setKey, ['incSpeed', 1])
-		self.accept("+-up", self.setKey, ['incSpeed', 0])
-		self.accept("-", self.setKey, ['decSpeed', 1])
-		self.accept("--up", self.setKey, ['decSpeed', 0])
-
+	def incTemp(self):
+		self.t*=1.05
+		c = self.getColor()
 		
-		self.accept('w', self.setKey, ['fwd', 1])
-		self.accept('w-up', self.setKey, ['fwd', 0])
-		self.accept('s', self.setKey, ['bwd', 1])
-		self.accept('s-up', self.setKey, ['bwd', 0])
-		self.accept('d', self.setKey, ['rt', 1])
-		self.accept('d-up', self.setKey, ['rt', 0])
-		self.accept('a', self.setKey, ['lft', 1])
-		self.accept('a-up', self.setKey, ['lft', 0])
-		self.accept('o', self.prevPlanet)
-		self.accept('p', self.nextPlanet)
+		log.info(self.t)
+		log.info(c)
 		
-		self.accFactor = 1.01
-		self.decFactor = 1.01
+		#self.sun1.setColorScale(c)
+		self.sun1.getMaterial().setEmission(c)
 		
-		self.fwdStep = 0.1
-		self.bwdStep = 0.1
-		self.lftStep = 0.1
-		self.rtStep = 0.1
+	def decTemp(self):
+		self.t/=1.05
+		c = self.getColor()
 		
-		self.setUpMouse()
+		log.info(self.t)
+		log.info(c)
 		
-		log.info("Controlls set up")
-	
-	def logCamera (self) :
-		log.info("Logging camera")
-		log.info(camera.getPos(render))
-		log.info(camera.getHpr(render))
-		log.info("Logging cameraNode")
-		log.info(self.cameraNode.getPos(render))
-		log.info(self.cameraNode.getHpr(render))
-	
-	def setKey(self, key, val) :
-		self.keys[key] = val
-	
-	def resetCam(self) :
-		self.attachCam(self.bodies[self.curPlanet].node)
-	
-	def attachCam(self, node) :
-
-		if self.detached : 
+		#self.sun1.setColorScale(c)
+		self.sun1.getMaterial().setEmission(c)
 		
-			self.detached = False
-			
-			self.cameraNode.wrtReparentTo(render)
-			camera.wrtReparentTo(self.cameraNode)
-			
-			hpr = camera.getHpr()
-			
-			camera.setHpr(0,0,0)
-			
-			self.cameraNode.wrtReparentTo(node)
-			self.cameraNode.setHpr(hpr)
-			
-			self.rotateX = self.cameraNode.getH()
-			self.rotateY = self.cameraNode.getP()
-			
-			self.cameraNode.setPos(0,0,0)
-			self.cameraNode.setScale(1)
 		
-	def logCam(self):
-		log.info('camera')
-		log.info(camera.getPos())
-		log.info(camera.getHpr())
-		log.info('node')
-		log.info(self.cameraNode.getPos())
-		log.info(self.cameraNode.getHpr())
-		log.info('skybox')
-		log.info(self.skybox.getPos())
-		log.info(self.skybox.getHpr())
-		
-		for b in self.bodies :
-			log.info(b.node.getPos(render))
-		
+		   
+	def toggleGlow(self):
+		self.glowSize = self.glowSize + 1
+		if self.glowSize == 4:
+			self.glowSize = 0
+		self.filters.setBloom(blend=(0, 0, 0, 1), desat=-0.5, intensity=10.0,
+							  size=self.glowSize)
 
-		
-	def nextPlanet(self) :
-		if self.curPlanet < len(self.bodies) - 1 :
-			self.curPlanet += 1
-			self.detachCamera()
-			self.attachCam(self.bodies[self.curPlanet].node)
-
-			
-	def prevPlanet(self) :
-		if self.curPlanet > 0 :
-			self.curPlanet -= 1
-			self.detachCamera()
-			self.attachCam(self.bodies[self.curPlanet].node)
-			
-	def setUpMouse(self) :
-
-		self.disableMouse()
-
-		self.mouseMagnitude = 3
-
-		self.rotateX, self.rotateY, self.rotateXd, self.rotateYd = 0, 0, 0, 0
-
-		self.lastMouseX, self.lastMouseY = None, None
-
-		taskMgr.add(self.mouseTask, "Mouse Task")
-		self.scrolling = False
-		self.detached = False
-	
-	def detachCamera(self):
-		if not self.detached : 
-			self.detached = True
-			camera.wrtReparentTo(render)
-			self.cameraNode.wrtReparentTo(camera)
-	
-	def mouseTask (self, task):
-		mw = base.mouseWatcherNode
-		wp = WindowProperties()
-
-		hasMouse = mw.hasMouse() 
-		if hasMouse and mw.is_button_down(MouseButton.one()):
-			x, y = mw.getMouseX(), mw.getMouseY()
-			
-			if not self.scrolling :
-					self.lastMouseX, self.lastMouseY = x, y
-					self.scrolling = True
-			
-			if self.lastMouseX is not None:
-				
-				dx, dy = x - self.lastMouseX, y - self.lastMouseY
-
-			else:
-				dx, dy = 0, 0
-
-			self.lastMouseX, self.lastMouseY = x, y
-			
+	def toggleDisplay(self):
+		self.isRunning = not self.isRunning
+		if not self.isRunning:
+			camera.setPos(0, -50, 0)
+			self.tron.stop("running")
+			self.tron.pose("running", 0)
+			self.interval.loop()
 		else:
-			x, y, dx, dy, self.lastMouseX, self.lastMouseY = 0, 0, 0, 0, 0, 0
-			self.scrolling = False
-		
-		if self.detached and self.scrolling :
-			self.rotateX += dx * 10 * self.mouseMagnitude
-			self.rotateY -= dy * 10 * self.mouseMagnitude
-
-			self.camera.setH(self.rotateX)
-			self.camera.setP(self.rotateY)
-		elif not self.detached and self.scrolling :
-			self.rotateX += dx * 10 * self.mouseMagnitude
-			self.rotateY -= dy * 10 * self.mouseMagnitude
-
-			self.cameraNode.setH(self.rotateX)
-			self.cameraNode.setP(self.rotateY)
+			camera.setPos(0, -170, 3)
+			self.interval.finish()
+			self.tron.setHpr(0, 0, 0)
+			self.tron.loop("running")
+	def getColor(self):
+		temp = self.t/100
+		r, g, b = 0, 0, 0
+		if temp <= 66 :
+			r = 255
+			g = temp
+			g = 99.4708025861 * math.log(g) - 161.1195681661
+			if temp <= 19:
+				b = 0
+			else :
+				b = temp - 10
+				b = 138.5177312231 * math.log(b) - 305.0447927307
+		else :
+			r = temp -60
+			r = 329.698727446 * r**(-0.1332047592)
+			
+			g = temp - 60
+			g = 288.1221695283 * g**(-0.0755148492 )
+			b = 255
+		return (r/255.0, g/255.0, b/255.0, 1)
+	def spinTask(self, task):
+		self.sun1.setH(self.sun1, 1)
 		return Task.cont
 
-	def draw(self):
-		
-		lines = LineSegs()
-		
-		NodePath(self.gNode).detachNode()
-		
-		self.gNode = lines.create()
-		
-		m = Material()
-		m.setEmission((1,1,1,1))
-		#NodePath(self.gNode).setMaterial(m)
-		
-		NodePath(self.gNode).reparentTo(render)
-		NodePath(self.gNode).setLight(self.pathLight)
-		for o in self.bodies:
-			
-			lines.setColor(o.trlClr)
-			
-			for wp in o.wayPoints:
-					lines.drawTo(wp)
-			self.gNode = lines.create(self.gNode)
-		
-		#return Task.again
-                
-	
-	def incScale(self) : 
-		factor = 3
-		global scale 
-		scale*= factor
-		self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
-		
-		pos = camera.getPos(render)
-		
-		for b in self.bodies :
-			b.node.setScale(b.node.getScale()[0]*factor)
-			
-		camera.setPos(render, pos)
-		self.cameraNode.setScale(1)
-		
-		
-	def decScale(self) : 
-		factor = 3
-		global scale 
-		if scale >= factor :
-			scale//= factor
 
-			
-			pos = camera.getPos(render)
-			
-			for b in self.bodies :
-				b.node.setScale(b.node.getScale()[0]//factor)
-			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
-			
-			pos = camera.getPos(render)
-			for b in self.bodies :
-				b.node.setScale(b.node.getScale()[0]//factor)
-			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
-
-			camera.setPos(render, pos)
-			self.cameraNode.setScale(1)
-	
-	def addPlanet(self, name):
-		planet = loader.loadModel('models/planet_sphere')
-		planet.setTexture(loader.loadTexture('textures/' + name + '.jpg'))
-		r = values.values[name]['r']*scale
-		
-		f = 1
-		
-		planet.setScale(r*f)
-		planet.reparentTo(render)
-		
-		trlClr = (random.random(), random.random(), random.random(), 1.0)
-		
-		pos = values.values[name]['p']
-		v = values.values[name]['v']
-		
-		body = Body(planet, values.values[name]['m'], numpy.array([pos[0]*f, pos[1]*f, pos[2]*f]), numpy.array([v[0]*f, v[1]*f, v[2]*f]), numpy.array(values.values[name]['av']), trlClr)
-		
-		self.bodies.append(body)
-		
 
 test = Test()
 test.run()

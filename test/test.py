@@ -577,16 +577,15 @@ class Test(ShowBase) :
 			log.info(o.rbnode.getInertia())
 	def debugFunction(self):
 		for o in self.bodies :
-			
-			
+			o.rbnode.setDeactivationEnabled(False)
 			o.rbnode.setLinearVelocity(Vec3(0,0,0))
 			log.info(o.rbnode.isActive())
 			log.info('debug1')
 	def debugFunction2(self):
 		for o in self.bodies :
 			log.info(o.rbnode.getLinearVelocity())
-			o.rbnode.setDeactivationTime(10000)
-			o.rbnode.setLinearVelocity(Vec3(1,0,0))
+			log.info(o.rbnode.getDeactivationTime())
+			o.rbnode.setLinearVelocity(Vec3(10,0,0))
 			log.info(o.rbnode.getLinearVelocity())
 			log.info('debug2')
 		
