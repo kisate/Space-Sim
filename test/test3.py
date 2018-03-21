@@ -30,30 +30,66 @@ class Test(ShowBase) :
 		base.disableMouse()
 	
 		self.sun1 = loader.loadModel("models/planet_sphere")
-		#self.sun1.setTexture(loader.loadTexture('textures/earth.jpg'))
+		self.sun2 = loader.loadModel("models/planet_sphere")
+		#self.sun1.setTexture(loader.loadTexture('textures/tex5.png'))
 		# self.sun1.setColorScale((0,0,0,0.9))
 		# m = Material()
 		# m.setEmission(c)
 		#self.sun1.setMaterial(m)
-		self.sun1.setPos(0,0,0)
-		self.sun1.setScale(1)
+		self.sun1.setPos(-1,0,0)
+		self.sun1.setH(90)
+		self.sun2.setPos(1,0,0)
 		self.sun1.reparentTo(render)
-		
-		camera.reparentTo(self.sun1)
+		self.sun2.reparentTo(render)
+		camera.reparentTo(render)
 		camera.setY(-10)
 		camera.setCompass(render)
 		
 		
 		
-		ts = TextureStage('ts')
-		ts.setMode(TextureStage.MModulate)
-		tex = loader.loadTexture('textures/tex.png')
-		tex.setWrapU(Texture.WM_border_color)
-		tex.setWrapV(Texture.WM_border_color)
-		tex.setBorderColor(VBase4(0.4, 0.5, 1, 0))
-		self.sun1.setTexture(ts, tex)
-		self.sun1.setTexScale(ts, 1, 1)
+		# ts = TextureStage('ts')
+		# ts.setMode(TextureStage.MModulate)
+		# tex = loader.loadTexture('textures/tex5.png')
+		# tex.setWrapU(Texture.WM_clamp)
+		# tex.setWrapV(Texture.WM_clamp)
+		# self.ts = ts
+		np = NodePath(self.sun1)
+		# np.setTexture(ts, tex)
+		# self.sun1.setTexScale(ts, 2, 2)
+	
+		proj = render.attachNewNode(LensNode('proj'))
+		lens = PerspectiveLens()
+		proj.node().setLens(lens)
+		proj.node().showFrustum()
+		proj.find('frustum').setColor(1, 0, 0, 1)
+		proj.reparentTo(render)
+		proj.setPos(-1, -3, 0)
 		
+		i = proj.posInterval(5, VBase3(-1, 0, 0))
+		i.loop()
+		
+		tex = loader.loadTexture('textures/tex6.png')
+		tex.setWrapU(Texture.WMBorderColor)
+		tex.setWrapV(Texture.WMBorderColor)
+		tex.setBorderColor(VBase4(1, 1, 1, 0))
+		ts = TextureStage('ts')
+		ts.setSort(1)
+		ts.setMode(TextureStage.MModulate)
+		self.sun1.projectTexture(ts, tex, proj)
+		 
+		base.disableMouse()
+	
+		
+		self.counter = 1
+		
+		ts2 = TextureStage('ts2')
+		ts2.setMode(TextureStage.MModulate)
+		tex2 = loader.loadTexture('textures/tex5.png')
+		
+		self.sun2.setTexture(ts2, tex2)
+		#self.sun2.setTexScale(ts2, 2, 1)
+        
+        
 		self.isRunning = False
 		
 	
@@ -64,12 +100,20 @@ class Test(ShowBase) :
 		self.sun1.setShaderAuto()
 		
 		
-		self.taskMgr.doMethodLater(0.05, self.spinTask, 'PhysTask')
+		self.taskMgr.doMethodLater(0.2, self.spinTask, 'PhysTask')
+		
+		self.accept('i', self.log)
 
 	def spinTask(self, task):
-		self.sun1.setH(self.sun1, 1)
+		self.sun1.setH(self.sun1, 0)
+		self.sun2.setH(self.sun2, 0)
+		# self.sun1.setTexScale(self.ts, self.counter, self.counter)
+		# self.sun1.setTexOffset(self.ts, 1 - self.counter, 1 - self.counter)
+		# self.counter*=1.005
 		return Task.cont
-
+	
+	def log(self):
+		log.info(self.counter)
 
 
 test = Test()
