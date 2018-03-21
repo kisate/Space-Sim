@@ -37,12 +37,11 @@ class Test(ShowBase) :
 		# m.setEmission(c)
 		#self.sun1.setMaterial(m)
 		self.sun1.setPos(-1,0,0)
-		self.sun1.setH(90)
 		self.sun2.setPos(1,0,0)
 		self.sun1.reparentTo(render)
 		self.sun2.reparentTo(render)
 		camera.reparentTo(render)
-		camera.setY(-10)
+		camera.setPos(0, -10, 0)
 		camera.setCompass(render)
 		
 		
@@ -62,11 +61,12 @@ class Test(ShowBase) :
 		proj.node().setLens(lens)
 		proj.node().showFrustum()
 		proj.find('frustum').setColor(1, 0, 0, 1)
-		proj.reparentTo(render)
-		proj.setPos(-1, -3, 0)
+		proj.reparentTo(self.sun1)
+		proj.setPos(0, -2, 0)
+		self.sun1.setP(-45)
 		
 		i = proj.posInterval(5, VBase3(-1, 0, 0))
-		i.loop()
+		#i.loop()
 		
 		tex = loader.loadTexture('textures/tex6.png')
 		tex.setWrapU(Texture.WMBorderColor)
