@@ -164,11 +164,22 @@ class Test(ShowBase) :
 		# self.taskMgr.doMethodLater(0.2, self.spinTask, 'PhysTask')
 		
 		npath = render.attachNewNode('npath')
-		npath.setPos(0.1, -1, 0)
+		npath.setPos(-r, -1, 0)
+		npath2 = render.attachNewNode('npath')
+		npath2.setPos(r, -1, 0)
 		
 		self.counter = 1
 		
-		self.addCollision(camera)
+		tex = loader.loadTexture('textures/tex6.png')
+		tex.setWrapU(Texture.WMBorderColor)
+		tex.setWrapV(Texture.WMBorderColor)
+		tex.setBorderColor(VBase4(1, 1, 1, 0))
+		
+		self.ts = TextureStage('colts{}1'.format(self.counter))
+		#ts.setSort(1)
+		self.ts.setMode(TextureStage.MGlow)
+		
+		self.addCollision(npath2)
 		self.addCollision(npath)
 		self.accept('i', self.log)
 
@@ -240,7 +251,7 @@ class Test(ShowBase) :
 		
 		self.counter+=1
 		
-		self.model.projectTexture(ts, tex, proj)
+		self.model.projectTexture(self.ts, tex, proj)
 		self.model.projectTexture(ts2, tex2, proj)
 
 		
