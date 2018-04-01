@@ -588,7 +588,7 @@ class Test(ShowBase) :
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		body = Body(model, node, rbnode, r, trlClr, temperature)
+		body = Body(model, node, rbnode, r, name, trlClr, temperature)
 		
 		if mass >= self.minMass :
 			self.pullers.append(body)
@@ -647,10 +647,11 @@ class Test(ShowBase) :
 		log.info('debug1')
 	def debugFunction2(self):
 
-		s = 0
+		s = Vec3(0,0,0)
 
 		for o in self.bodies :
-			s += self.countEnergy(o)
+			#log.info(o.rbnode.getAngularVelocity())
+			s += o.rbnode.getLinearVelocity()*o.rbnode.getMass()
 		
 		log.info(s)
 			
@@ -659,6 +660,18 @@ class Test(ShowBase) :
 		deltaMass = (node1.getMass()+node2.getMass())*1e-6
 		#node1.setMass(node1.getMass() - deltaMass*0.5)
 		#node2.setMass(node2.getMass() - deltaMass*0.5)
+
+		
+
+		self.world.removeRigidBody(node2)
+		NodePath(node2).removeNode()
+
+		body = next(x for x in self.bodies if x.name == node2.getName())
+
+		self.bodies.remove(body)
+		if body in self.pullers : self.pullers.remove(body)
+
+		log.info(body)
 
 		self.addCollision(NodePath(node1), NodePath(node2))
 		
@@ -674,15 +687,13 @@ class Test(ShowBase) :
 		
 		
 		
-		log.info(node1.getChildren())
-		
 		proj = render.attachNewNode(LensNode('proj'))
 		lens = PerspectiveLens()
 		lens.setFov(5)
 		self.lens = lens
 		proj.node().setLens(lens)
-		proj.node().showFrustum()
-		proj.find('frustum').setColor(1, 0, 0, 1)
+		#proj.node().showFrustum()
+		#proj.find('frustum').setColor(1, 0, 0, 1)
 		proj.reparentTo(base)
 		proj.setPos(0,-1,0)
 		
@@ -708,8 +719,6 @@ class Test(ShowBase) :
 		
 		#self.model.projectTexture(self.ts, tex, proj)
 		model.projectTexture(ts2, tex2, proj)
-		
-		log.info('ada')
 
 		self.taskMgr.add(self.expandingTask, 'Exp{}'.format(self.counter), extraArgs=[proj, 40, ts2, model], appendTask = True)
 	

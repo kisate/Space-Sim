@@ -5,11 +5,12 @@ import importPanda
 
 from panda3d.core import Geom, Vec4, Material
 class Body :
-	def __init__ (self, model, node, rbnode, r, trlClr = (1, 1, 1, 1), t = 0):
+	def __init__ (self, model, node, rbnode, r, name, trlClr = (1, 1, 1, 1), t = 0):
 		self.model = model
 		self.node = node
 		self.rbnode = rbnode
 		self.radius = r
+		self.name = name
 		
 		self.wayPoints = []
 		self.trlClr = trlClr
