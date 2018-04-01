@@ -20,7 +20,6 @@ class Body :
 		
 		if t >= 500 :
 			c = self.getColor()
-			self.model.setColorScale((0,0,0,1))
 			m = Material()
 			m.setEmission(c)
 			self.model.setMaterial(m)

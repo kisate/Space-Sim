@@ -1,34 +1,43 @@
+import argparse
 import logging
+import pickle
+import random
+import sys
+from math import copysign, cos, pi, sin
+
+import numpy
+
+import importPanda
+import simulations
+from body import Body
+from direct.filter.CommonFilters import CommonFilters
+from direct.gui.OnscreenImage import OnscreenImage
+from direct.gui.OnscreenText import OnscreenText
+from direct.interval.LerpInterval import LerpPosInterval
+from direct.showbase.ShowBase import ShowBase
+from direct.task import Task
+from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape, BulletWorld
+from panda3d.core import *
+from panda3d.core import (AmbientLight, DirectionalLight, Geom, GeomLinestrips,
+                          GeomNode, GeomVertexData, GeomVertexFormat,
+                          LightAttrib, LVector3, Material, MouseButton,
+                          WindowProperties)
+from pandac.PandaModules import loadPrcFileData
+
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
-import sys
 
-import importPanda
 
-from panda3d.core import *
-from direct.showbase.ShowBase import ShowBase
-from panda3d.core import AmbientLight, DirectionalLight, LightAttrib
-from panda3d.core import LVector3
-from direct.task import Task
-from direct.gui.OnscreenImage import OnscreenImage
-from panda3d.core import GeomVertexFormat, GeomVertexData, Geom, GeomNode, GeomLinestrips
-from panda3d.core import Material, WindowProperties, MouseButton
-from direct.gui.OnscreenText import OnscreenText
-from direct.interval.LerpInterval import LerpPosInterval
-from direct.filter.CommonFilters import CommonFilters
-from panda3d.bullet import BulletWorld, BulletSphereShape, BulletRigidBodyNode
-from math import pi, sin, cos, copysign
-import numpy
-from body import Body
-import simulations
-import random
 
-import argparse
 
-import pickle
+
+
+
+loadPrcFileData('', 'bullet-enable-contact-events true')
+
 t = 10000
-G = 0
+G = 6.67408e-20
 
 fov = 100
 tick = 1/100
@@ -66,12 +75,18 @@ class Test(ShowBase) :
 		log.info('Loading started')
 		log.info('Initiallizing engine')
 		ShowBase.__init__(self)
+		
+		self.accept('bullet-contact-added', self.onContactAdded)
+		self.accept('bullet-contact-destroyed', self.onContactDestroyed)
+		
 		self.gNode = GeomNode('gnode')
 		n = render.attachNewNode(self.gNode)
 		self.bodies = []
+		self.pullers = []
 		
 		
-		self.massScale = 1e19
+		self.massScale = 1e25
+		self.minMass = 1e10
 		
 		global G
 		G*=self.massScale
@@ -86,7 +101,7 @@ class Test(ShowBase) :
 		
 		for i in range(igeoms):
 			for o in self.bodies :			
-				for o2 in self.bodies :
+				for o2 in self.pullers :
 					if o2 != o :
 						imp = getImpulse(o2, o)
 						o.rbnode.applyCentralImpulse(imp)
@@ -102,7 +117,6 @@ class Test(ShowBase) :
 				#if(len(wps) > geoms) : wps.pop(0)
 			if i % 50 == 0 :
 				log.info("{0:.2f}%".format(i/igeoms*100))
-		
 		
 		
 		log.info("100.0%")
@@ -138,13 +152,14 @@ class Test(ShowBase) :
 		base.camLens.setNearFar(0.1, 1e12)
 
 		
-		self.cameraNode.reparentTo(self.bodies[0].model)
-		self.cameraNode.lookAt(self.bodies[0].model)
+		self.cameraNode.reparentTo(self.bodies[0].node)
+		self.cameraNode.setScale(self.bodies[0].radius)
+		self.cameraNode.lookAt(self.bodies[0].node)
 		
-		camera.setY(-5);
+		camera.setY(-5)
 		
-		self.cameraNode.setP(-90);
-		self.rotateY = -90;
+		self.cameraNode.setP(-90)
+		self.rotateY = -90
 		self.cameraNode.setCompass()
 		self.curPlanet = 0
 		
@@ -178,22 +193,25 @@ class Test(ShowBase) :
 	def countEnergy(self, o) :
 		mass = o.rbnode.getMass()
 		El = mass*self.massScale/2*o.rbnode.getLinearVelocity().length()**2
-		Er = mass*0.2*self.massScale*o.radius**2*o.rbnode.getAngularVelocity().length()**2
+
+		vel = o.rbnode.getAngularVelocity()
+
+		Ex = 0.2*mass*self.massScale*o.radius**2*abs(vel[0])**2
+		Ey = 0.2*mass*self.massScale*o.radius**2*abs(vel[1])**2
+		Ez = 0.2*mass*self.massScale*o.radius**2*abs(vel[2])**2
+
+		Er = Ex + Ey + Ez
 		return El + Er
+
 	def physTask(self, task) :
 	
 		for o in self.bodies :			
-			for o2 in self.bodies :
+			for o2 in self.pullers :
 				if o2 != o :
 					imp = getImpulse(o2, o)
 					o.rbnode.applyCentralImpulse(imp)
 		#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
-		self.counters[0]+=1
-		if self.counters[0] % 10 ==  0: 
-			s = 0
-			for o in self.bodies:
-				s += self.countEnergy(o)
-			log.info(s)
+		
 		
 		self.world.doPhysics(t, 10, t/10)
 		
@@ -264,7 +282,7 @@ class Test(ShowBase) :
 		global t;		
 		
 		if self.keys['incSpeed'] == 1:
-			t*=self.accFactor;
+			t*=self.accFactor
 			self.accFactor*=1.001
 			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 		
@@ -272,7 +290,7 @@ class Test(ShowBase) :
 			self.accFactor = 1.01
 		
 		if self.keys['decSpeed'] == 1:
-			t/=self.decFactor;
+			t/=self.decFactor
 			self.decFactor*=1.001
 			self.speedText.setText('{0} seconds per tick [+/-]'.format(round(t, 2)))
 			
@@ -361,10 +379,10 @@ class Test(ShowBase) :
 	
 	def resetCamera(self) :
 
-		self.attachCamera(self.bodies[self.curPlanet].model)
+		self.attachCamera(self.bodies[self.curPlanet])
 
 	
-	def attachCamera(self, model) :
+	def attachCamera(self, body) :
 
 		if self.detached : 
 		
@@ -377,15 +395,17 @@ class Test(ShowBase) :
 			
 			camera.setHpr(0,0,0)
 			
-			self.cameraNode.wrtReparentTo(model)
+			self.cameraNode.wrtReparentTo(body.node)
 			self.cameraNode.setHpr(hpr)
 			
 			self.rotateX = self.cameraNode.getH()
 			self.rotateY = self.cameraNode.getP()
 			
-			self.cameraNode.setScale(1)
+			
+			self.cameraNode.setScale(body.radius)
 			self.cameraNode.setPos(0,0,0)
-			self.cameraNode.setScale(1)
+		
+			self.cameraNode.setScale(body.radius)
 		
 	def logCamera(self):
 		log.info('camera')
@@ -403,14 +423,14 @@ class Test(ShowBase) :
 		if self.curPlanet < len(self.bodies) - 1 :
 			self.curPlanet += 1
 			self.detachCamera()
-			self.attachCamera(self.bodies[self.curPlanet].model)
+			self.attachCamera(self.bodies[self.curPlanet])
 
 			
 	def prevPlanet(self) :
 		if self.curPlanet > 0 :
 			self.curPlanet -= 1
 			self.detachCamera()
-			self.attachCamera(self.bodies[self.curPlanet].model)
+			self.attachCamera(self.bodies[self.curPlanet])
 			
 	def setUpMouse(self) :
 
@@ -552,8 +572,13 @@ class Test(ShowBase) :
 		rbnode.setMass(mass/self.massScale)
 		#rbnode.setRestitution(0.5)
 		
+		if vel == [0,0,0] :
+			rbnode.setDeactivationEnabled(False)
+		
 		rbnode.setLinearVelocity(Vec3(*vel))
 		rbnode.setAngularVelocity(Vec3(*avel))
+		
+
 		
 		node = render.attachNewNode(rbnode)
 		self.world.attachRigidBody(rbnode)
@@ -561,11 +586,14 @@ class Test(ShowBase) :
 		model.reparentTo(node)
 		
 		node.setPos(*pos)
+		node.node().notifyCollisions(True)
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
 		body = Body(model, node, rbnode, r, trlClr, temperature)
 		
+		if mass >= self.minMass :
+			self.pullers.append(body)
 		self.bodies.append(body)
 	
 	def loadSimulation(self, n) :
@@ -575,19 +603,127 @@ class Test(ShowBase) :
 	def logSomething(self):
 		for o in self.bodies :
 			log.info(o.rbnode.getInertia())
-	def debugFunction(self):
-		for o in self.bodies :
-			o.rbnode.setDeactivationEnabled(False)
-			o.rbnode.setLinearVelocity(Vec3(0,0,0))
-			log.info(o.rbnode.isActive())
-			log.info('debug1')
+	def debugFunction(self):		
+	
+		base = render.attachNewNode('base')
+		base.reparentTo(self.bodies[0].model)
+		
+		base.lookAt(camera)
+		
+		proj = render.attachNewNode(LensNode('proj'))
+		lens = PerspectiveLens()
+		lens.setFov(5)
+		self.lens = lens
+		proj.node().setLens(lens)
+		proj.node().showFrustum()
+		proj.find('frustum').setColor(1, 0, 0, 1)
+		proj.reparentTo(base)
+		proj.setPos(0,-1,0)
+		
+		# tex = loader.loadTexture('textures/tex6.png')
+		# tex.setWrapU(Texture.WMBorderColor)
+		# tex.setWrapV(Texture.WMBorderColor)
+		# tex.setBorderColor(VBase4(1, 1, 1, 0))
+		
+		tex2 = loader.loadTexture('textures/tex7.png')
+		tex2.setWrapU(Texture.WMBorderColor)
+		tex2.setWrapV(Texture.WMBorderColor)
+		tex2.setBorderColor(VBase4(1, 1, 1, 0))
+		
+		# ts = TextureStage('colts{}1'.format(self.counter))
+		# #ts.setSort(1)
+		# ts.setMode(TextureStage.MGlow)
+		
+		ts2 = TextureStage('colts{}2'.format(self.counter))
+		#ts2.setSort(1)
+		ts2.setMode(TextureStage.MDecal)
+		
+		self.counters[0]+=1
+		
+		#self.model.projectTexture(self.ts, tex, proj)
+		self.bodies[0].model.projectTexture(ts2, tex2, proj)
+		
+		log.info(self.bodies[0].model.getChildren())
+		
+		
+		log.info('debug1')
 	def debugFunction2(self):
+
+		s = 0
+
 		for o in self.bodies :
-			log.info(o.rbnode.getLinearVelocity())
-			log.info(o.rbnode.getDeactivationTime())
-			o.rbnode.setLinearVelocity(Vec3(10,0,0))
-			log.info(o.rbnode.getLinearVelocity())
-			log.info('debug2')
+			s += self.countEnergy(o)
+		
+		log.info(s)
+			
+	def onContactAdded(self, node1, node2):
+
+		deltaMass = (node1.getMass()+node2.getMass())*1e-6
+		#node1.setMass(node1.getMass() - deltaMass*0.5)
+		#node2.setMass(node2.getMass() - deltaMass*0.5)
+
+		self.addCollision(NodePath(node1), NodePath(node2))
+		
+	def onContactDestroyed(self, node1, node2):
+		return		
+	
+	def addCollision(self, node1, node2):
+		
+		model = node1.find("**/planet_sphere.egg")
+		
+		base = model.attachNewNode('base')
+		base.lookAt(node2)
+		
+		
+		
+		log.info(node1.getChildren())
+		
+		proj = render.attachNewNode(LensNode('proj'))
+		lens = PerspectiveLens()
+		lens.setFov(5)
+		self.lens = lens
+		proj.node().setLens(lens)
+		proj.node().showFrustum()
+		proj.find('frustum').setColor(1, 0, 0, 1)
+		proj.reparentTo(base)
+		proj.setPos(0,-1,0)
+		
+		# tex = loader.loadTexture('textures/tex6.png')
+		# tex.setWrapU(Texture.WMBorderColor)
+		# tex.setWrapV(Texture.WMBorderColor)
+		# tex.setBorderColor(VBase4(1, 1, 1, 0))
+		
+		tex2 = loader.loadTexture('textures/tex7.png')
+		tex2.setWrapU(Texture.WMBorderColor)
+		tex2.setWrapV(Texture.WMBorderColor)
+		tex2.setBorderColor(VBase4(1, 1, 1, 0))
+		
+		# ts = TextureStage('colts{}1'.format(self.counter))
+		# #ts.setSort(1)
+		# ts.setMode(TextureStage.MGlow)
+		
+		ts2 = TextureStage('colts{}2'.format(self.counter))
+		#ts2.setSort(1)
+		ts2.setMode(TextureStage.MDecal)
+		
+		self.counters[0]+=1
+		
+		#self.model.projectTexture(self.ts, tex, proj)
+		model.projectTexture(ts2, tex2, proj)
+		
+		log.info('ada')
+
+		self.taskMgr.add(self.expandingTask, 'Exp{}'.format(self.counter), extraArgs=[proj, 40, ts2, model], appendTask = True)
+	
+	def expandingTask(self, proj, max, ts, node, task) :
+	
+		lens = proj.node().getLens()
+		lens.setFov(lens.getFov() * (1+t/2000))
+		if (lens.getFov() >= max) :
+			node.clearProjectTexture(ts)
+			proj.parent.removeNode()
+			return Task.done
+		return Task.cont
 		
 
 test = Test()

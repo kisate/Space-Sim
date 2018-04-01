@@ -3,7 +3,7 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 import importPanda
-
+from body import Body
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import Filename, Shader
 from panda3d.core import PandaNode, NodePath
@@ -22,22 +22,35 @@ import math
 import sys
 import os
 
-	
+from pandac.PandaModules import loadPrcFileData
+loadPrcFileData('', 'bullet-enable-contact-events true')
+
+t = 30
+
 class Test(ShowBase) :
 	def __init__(self):
 		
 		ShowBase.__init__(self)
 
+		
+		self.accept('bullet-contact-added', self.onContactAdded)
+		self.accept('bullet-contact-destroyed', self.onContactDestroyed)
+
+		
+		
 		base.disableMouse()
 		
 		self.world = BulletWorld()
 		
 		self.massScale = 1e19
+		self.g = 6.67408e-20
+		self.g*=self.massScale
 		
 		self.model = loader.loadModel('models/planet_sphere')
 		self.model.setTexture(loader.loadTexture('textures/earth.jpg'))
 		
-		r = 1
+		r = 6371
+		self.r = r 
 		mass = 5.97e+24
 		
 		self.model.setScale(r)
@@ -47,23 +60,26 @@ class Test(ShowBase) :
 		rbnode = BulletRigidBodyNode("Model")
 		rbnode.addShape(shape)
 		rbnode.setMass(mass/self.massScale)
+		rbnode.setDeactivationEnabled(False)
+		rbnode.setAngularVelocity((0,0,0.0005))
 		#rbnode.setRestitution(0.5)
 		
 		
 		node = render.attachNewNode(rbnode)
+		
+		node.node().notifyCollisions(True)
+		
 		self.world.attachRigidBody(rbnode)
 		
 		self.model.reparentTo(node)
+		
+		self.body = Body(self.model, node, rbnode, r, (1,1,1,1), 2000)
 		
 		self.filters = CommonFilters(base.win, base.cam)
 		filterok = self.filters.setBloom(
 			blend=(0, 0, 0, 1), desat=-0.5, intensity=3.0, size=1)
 		
-		camera.reparentTo(self.model)
-		camera.setScale(1)
-		camera.setPos(0, -5, 0)
-		camera.lookAt(self.model)
-		camera.setCompass(render)
+		
 		
 		
 		
@@ -115,7 +131,7 @@ class Test(ShowBase) :
 		plight = PointLight('pligth')
 		plight.setColor(VBase4( 3, 3, 3, 1))
 		plnp = render.attachNewNode(plight)
-		plnp.setPos(-10*r,0,0)
+		plnp.reparentTo(self.model)
 		render.setLight(plnp)
 		
 		#self.sun2.setTexScale(ts2, 2, 1)
@@ -163,26 +179,65 @@ class Test(ShowBase) :
 		
 		# self.taskMgr.doMethodLater(0.2, self.spinTask, 'PhysTask')
 		
-		npath = render.attachNewNode('npath')
-		npath.setPos(-r, -1, 0)
-		npath2 = render.attachNewNode('npath')
-		npath2.setPos(r, -1, 0)
-		
 		self.counter = 1
 		
-		tex = loader.loadTexture('textures/tex6.png')
-		tex.setWrapU(Texture.WMBorderColor)
-		tex.setWrapV(Texture.WMBorderColor)
-		tex.setBorderColor(VBase4(1, 1, 1, 0))
+		# self.ts = TextureStage('colts{}1'.format(self.counter))
+		# #ts.setSort(1)
+		# self.ts.setMode(TextureStage.MModulateGlow)
 		
-		self.ts = TextureStage('colts{}1'.format(self.counter))
-		#ts.setSort(1)
-		self.ts.setMode(TextureStage.MGlow)
+		self.bodies = []
 		
-		self.addCollision(npath2)
-		self.addCollision(npath)
+		
+		self.addObjects()
+		
+		self.taskMgr.add(self.physTask, 'physTask')
+		
+		
 		self.accept('i', self.log)
 
+		
+	def onContactAdded(self, node1, node2):
+		self.addCollision(NodePath(node2))
+		self.world.removeRigidBody(node2)
+		NodePath(node2).removeNode()
+		
+	def onContactDestroyed(self, node1, node2):
+		return
+	
+	def addObjects(self) :
+		for i in range(3):
+			model = loader.loadModel('models/planet_sphere')
+			model.setColorScale(0,0,0,1)
+			
+			r = 100
+			mass = 5.97e+20
+			
+			model.setScale(r)
+			
+			shape = BulletSphereShape(r)
+					
+			rbnode = BulletRigidBodyNode("object{}".format(i))
+			rbnode.addShape(shape)
+			rbnode.setMass(mass/self.massScale)
+			rbnode.setDeactivationEnabled(False)
+			#rbnode.setRestitution(0.5)
+			
+			
+			node = render.attachNewNode(rbnode)
+			self.world.attachRigidBody(rbnode)
+			
+			node.setPos(self.r*(3-i), -self.r*5, 0)
+			
+			body = Body(model, node, rbnode, r, (1,1,1,1), 100)
+			
+			self.bodies.append(body)
+			
+			model.reparentTo(node)
+		camera.reparentTo(self.bodies[0].model)
+		camera.setScale(1)
+		camera.setPos(0, -15, 0)
+		camera.lookAt(self.model)
+		camera.setCompass(render)
 	def spinTask(self, task):
 		
 		#self.base.setP(self.base, 1)
@@ -222,7 +277,7 @@ class Test(ShowBase) :
 		
 		proj = render.attachNewNode(LensNode('proj'))
 		lens = PerspectiveLens()
-		lens.setFov(10)
+		lens.setFov(5)
 		self.lens = lens
 		proj.node().setLens(lens)
 		#proj.node().showFrustum()
@@ -251,13 +306,45 @@ class Test(ShowBase) :
 		
 		self.counter+=1
 		
-		self.model.projectTexture(self.ts, tex, proj)
+		#self.model.projectTexture(self.ts, tex, proj)
 		self.model.projectTexture(ts2, tex2, proj)
+		
+
+		self.taskMgr.add(self.expandingTask, 'Exp{}'.format(self.counter), extraArgs=[proj, 20, ts2])
 
 		
 		
 	def log(self):
-		log.info(self.counter)
+		log.info(self.bodies[0].node.getDistance(self.model))
+		
+	def expandingTask(self, proj, max, ts) :
+	
+		lens = proj.node().getLens()
+		lens.setFov(lens.getFov()*(1+t/1000))
+		if (lens.getFov() >= max) :
+			self.model.clearProjectTexture(ts)
+			proj.parent.removeNode()
+			return Task.done
+		return Task.cont
+	
+	def physTask(self, task):
+		for o in self.bodies :			
+			imp = self.getImpulse(self.body, o)
+			o.rbnode.applyCentralImpulse(imp)
+			
+		
+		self.world.doPhysics(t, 10, t/10)
+		return Task.cont
+	def getImpulse (self, o2, o1) :
+		k = o1.rbnode.getMass()*o2.rbnode.getMass()*self.g
+		
+		r = o1.node.getPos() - o2.node.getPos()
+		
+		d = k/(VBase3(r).length())**3
+		
+		x, y, z = r.getX(), r.getY(), r.getZ()
+		
+		return Vec3(-x*t*d,-y*t*d,-z*t*d)
 
 
 test = Test()
