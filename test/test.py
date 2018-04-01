@@ -68,8 +68,6 @@ def getImpulse (o2, o1) :
 	return Vec3(-x*t*d,-y*t*d,-z*t*d)
 	
 	
-	return numpy.multiply(d, numpy.subtract(o2.pos,o1.pos))
-	
 class Test(ShowBase) :
 	def __init__ (self):
 		log.info('Loading started')
