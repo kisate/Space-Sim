@@ -16,7 +16,7 @@ from direct.gui.OnscreenText import OnscreenText
 from direct.interval.LerpInterval import LerpPosInterval
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
-from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape, BulletWorld
+from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape, BulletWorld, BulletGhostNode
 from panda3d.core import *
 from panda3d.core import (AmbientLight, DirectionalLight, Geom, GeomLinestrips,
                           GeomNode, GeomVertexData, GeomVertexFormat,
@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 
 
 loadPrcFileData('', 'bullet-enable-contact-events true')
+loadPrcFileData('', 'bullet-filter-algorithm groups-mask')
 
 t = 10000
 G = 6.67408e-20
@@ -89,7 +90,7 @@ class Test(ShowBase) :
 		global G
 		G*=self.massScale
 		
-		self.world = BulletWorld()
+		
 		
 		self.loadModels(simulations.simulations[simulation])
 		
@@ -298,6 +299,15 @@ class Test(ShowBase) :
 		return Task.cont
 	
 	def loadModels(self, simulation) : 
+	
+		self.world = BulletWorld()
+		self.world.setGroupCollisionFlag(0, 0, True)
+		self.world.setGroupCollisionFlag(0, 2, False)
+		
+		self.world.setGroupCollisionFlag(1, 2, False)
+		self.world.setGroupCollisionFlag(2, 2, False)
+		
+		
 		for x in simulation['objects'].keys() :
 			self.addPlanet(x, simulation)		
 		global t 
@@ -565,10 +575,11 @@ class Test(ShowBase) :
 		
 		shape = BulletSphereShape(r)
 		        
-		rbnode = BulletRigidBodyNode(name)
-		rbnode.addShape(shape)
+		rbnode = BulletRigidBodyNode(name + 'rbn')
 		rbnode.setMass(mass/self.massScale)
 		#rbnode.setRestitution(0.5)
+		ghost = BulletGhostNode(name + 'gn')
+		ghost.addShape(shape)
 		
 		if vel == [0,0,0] :
 			rbnode.setDeactivationEnabled(False)
@@ -579,16 +590,19 @@ class Test(ShowBase) :
 
 		
 		node = render.attachNewNode(rbnode)
+		ghostNP = NodePath(ghost)
+		ghostNP.reparentTo(node)
 		self.world.attachRigidBody(rbnode)
-		
+		self.world.attachGhost(ghost)
+		ghostNP.setCollideMask(BitMask32.bit(1))
 		model.reparentTo(node)
 		
 		node.setPos(*pos)
-		node.node().notifyCollisions(True)
+		NodePath(ghost).node().notifyCollisions(True)
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 		
-		body = Body(model, node, rbnode, r, name, trlClr, temperature)
+		body = Body(model, node, rbnode, ghost, r, name, trlClr, temperature)
 		
 		if mass >= self.minMass :
 			self.pullers.append(body)
@@ -657,23 +671,30 @@ class Test(ShowBase) :
 			
 	def onContactAdded(self, node1, node2):
 
-		deltaMass = (node1.getMass()+node2.getMass())*1e-6
+		parent1 = NodePath(node1).parent
+		parent2 = NodePath(node2).parent
+		
+		log.debug(NodePath(node1).getCollideMask())
+		
+		NodePath(node1).setCollideMask(BitMask32.bit(2))
+		NodePath(node2).setCollideMask(BitMask32.bit(2))
+		#deltaMass = (node1.getMass()+node2.getMass())*1e-6
 		#node1.setMass(node1.getMass() - deltaMass*0.5)
 		#node2.setMass(node2.getMass() - deltaMass*0.5)
 
 		
 
-		self.world.removeRigidBody(node2)
-		NodePath(node2).removeNode()
+		#self.world.removeRigidBody(paren1.find('**/rbnode/**').node())
+		#NodePath(node2).removeNode()
 
-		body = next(x for x in self.bodies if x.name == node2.getName())
+		#body = next(x for x in self.bodies if x.name == node2.getName[:-3]())
 
-		self.bodies.remove(body)
-		if body in self.pullers : self.pullers.remove(body)
+		#self.bodies.remove(body)
+		#if body in self.pullers : self.pullers.remove(body)
 
-		log.info(body)
+		#log.info(body)
 
-		self.addCollision(NodePath(node1), NodePath(node2))
+		self.addCollision(NodePath(node1).parent, NodePath(node2).parent)
 		
 	def onContactDestroyed(self, node1, node2):
 		return		

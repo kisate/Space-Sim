@@ -75,6 +75,12 @@ class Test(ShowBase) :
 		
 		self.body = Body(self.model, node, rbnode, r, (1,1,1,1), 2000)
 		
+		camera.reparentTo(self.model)
+		camera.setScale(1)
+		camera.setPos(0, -15, 0)
+		camera.lookAt(self.model)
+		camera.setCompass(render)
+		
 		self.filters = CommonFilters(base.win, base.cam)
 		filterok = self.filters.setBloom(
 			blend=(0, 0, 0, 1), desat=-0.5, intensity=3.0, size=1)
@@ -197,9 +203,16 @@ class Test(ShowBase) :
 
 		
 	def onContactAdded(self, node1, node2):
+		
+		body = next(x for x in self.bodies if x.name == node2.getName())
+
+		self.bodies.remove(body)
+	
 		self.addCollision(NodePath(node2))
 		self.world.removeRigidBody(node2)
 		NodePath(node2).removeNode()
+		
+
 		
 	def onContactDestroyed(self, node1, node2):
 		return
@@ -209,8 +222,8 @@ class Test(ShowBase) :
 			model = loader.loadModel('models/planet_sphere')
 			model.setColorScale(0,0,0,1)
 			
-			r = 100
-			mass = 5.97e+20
+			r = 1000
+			mass = 5.97e+25
 			
 			model.setScale(r)
 			
@@ -228,16 +241,12 @@ class Test(ShowBase) :
 			
 			node.setPos(self.r*(3-i), -self.r*5, 0)
 			
-			body = Body(model, node, rbnode, r, (1,1,1,1), 100)
+			body = Body(model, node, rbnode, r, "object{}".format(i), (1,1,1,1), 100)
 			
 			self.bodies.append(body)
 			
 			model.reparentTo(node)
-		camera.reparentTo(self.bodies[0].model)
-		camera.setScale(1)
-		camera.setPos(0, -15, 0)
-		camera.lookAt(self.model)
-		camera.setCompass(render)
+		
 	def spinTask(self, task):
 		
 		#self.base.setP(self.base, 1)
@@ -331,6 +340,7 @@ class Test(ShowBase) :
 		for o in self.bodies :			
 			imp = self.getImpulse(self.body, o)
 			o.rbnode.applyCentralImpulse(imp)
+			log.info(imp)
 			
 		
 		self.world.doPhysics(t, 10, t/10)
