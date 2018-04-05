@@ -302,10 +302,9 @@ class Test(ShowBase) :
 	
 		self.world = BulletWorld()
 		self.world.setGroupCollisionFlag(0, 0, True)
-		self.world.setGroupCollisionFlag(0, 2, False)
+		self.world.setGroupCollisionFlag(0, 1, False)
 		
-		self.world.setGroupCollisionFlag(1, 2, False)
-		self.world.setGroupCollisionFlag(2, 2, False)
+		self.world.setGroupCollisionFlag(1, 1, False)
 		
 		
 		for x in simulation['objects'].keys() :
@@ -594,7 +593,7 @@ class Test(ShowBase) :
 		ghostNP.reparentTo(node)
 		self.world.attachRigidBody(rbnode)
 		self.world.attachGhost(ghost)
-		ghostNP.setCollideMask(BitMask32.bit(1))
+		ghostNP.setCollideMask(BitMask32.bit(0))
 		model.reparentTo(node)
 		
 		node.setPos(*pos)
@@ -674,10 +673,23 @@ class Test(ShowBase) :
 		parent1 = NodePath(node1).parent
 		parent2 = NodePath(node2).parent
 		
-		log.debug(NodePath(node1).getCollideMask())
+		body1 = next(x for x in self.bodies if x.name == node2.getName()[:-2])
 		
-		NodePath(node1).setCollideMask(BitMask32.bit(2))
-		NodePath(node2).setCollideMask(BitMask32.bit(2))
+		rbnode1 = parent1.node()
+		rbnode2 = parent2.node()
+		
+		
+		if rbnode1.getMass() > rbnode2.getMass() : 
+			rbnode2.setLinearFactor(Vec3(0, 0, 0))
+			rbnode2.setLinearVelocity(parent2.node().getLinearVelocity()*0.01)
+			mass = (rbnode1.getMass() + rbnode2.getMass())
+			density = rbnode1.getMass()/body1.radius
+			radius = mass/density
+			self.taskMgr.add(self.growingTask, 'Grow{}'.format(self.counter), extraArgs=[parent1.find("**/planet_sphere.egg"), radius], appendTask = True)
+		#log.debug(NodePath(node1).getCollideMask())
+		
+		#NodePath(node1).setCollideMask(BitMask32.bit(1))
+		#NodePath(node2).setCollideMask(BitMask32.bit(2))
 		#deltaMass = (node1.getMass()+node2.getMass())*1e-6
 		#node1.setMass(node1.getMass() - deltaMass*0.5)
 		#node2.setMass(node2.getMass() - deltaMass*0.5)
@@ -694,12 +706,31 @@ class Test(ShowBase) :
 
 		#log.info(body)
 
-		self.addCollision(NodePath(node1).parent, NodePath(node2).parent)
+		if (node2 not in body1.collidesWith) : self.addCollision(NodePath(node1).parent, NodePath(node2).parent)
 		
+		body1.collidesWith.append(node2)
+	
+	def growingTask(self, model, max, task) :
+	
+		scale = model.getScale()
+		new = scale*(1 + t/2000)
+		model.setScale(new)
+		log.info(max)
+		if (new >= max) :
+			return Task.done
+		return Task.cont
+	
 	def onContactDestroyed(self, node1, node2):
+		
+		body1 = next(x for x in self.bodies if x.name == node2.getName()[:-2])
+		
+		body1.collidesWith.remove(node2)
+		
 		return		
 	
 	def addCollision(self, node1, node2):
+		
+		log.debug(node1.getName())
 		
 		model = node1.find("**/planet_sphere.egg")
 		
@@ -737,6 +768,8 @@ class Test(ShowBase) :
 		ts2.setMode(TextureStage.MDecal)
 		
 		self.counters[0]+=1
+		
+		log.debug('projected')
 		
 		#self.model.projectTexture(self.ts, tex, proj)
 		model.projectTexture(ts2, tex2, proj)

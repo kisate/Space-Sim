@@ -13,6 +13,7 @@ class Body :
 		self.name = name
 		
 		self.wayPoints = []
+		self.collidesWith = []
 		self.trlClr = trlClr
 		self.setTemperature(t)
 	

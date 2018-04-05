@@ -19,8 +19,8 @@ simulations = {
 }, 
 'sim2' : {
 'objects' : {
-'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [0,0,0], 'av' : [0,0,0], 'temperature' : 6500, 'texture' : 'textures/earth.jpg'},
-'earth' : {'m' : 5.97e+24, 'r' : 6371, 'p' : [2000,1e5,0], 'v' : [0,-100,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'}
+'venus' : {'m' : 5.97e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [0,0,0], 'av' : [0,0,0], 'temperature' : 6500, 'texture' : 'textures/earth.jpg'},
+'earth' : {'m' : 4.87e+24, 'r' : 6371, 'p' : [2000,1e5,0], 'v' : [0,-100,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'}
 },
 'time' : 10
 },
@@ -33,13 +33,13 @@ simulations = {
 'sim4' : {
 'objects' : {
 'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [1,0,0], 'av' : [0,0,2*pi/10000], 'temperature' : 6500, 'texture' : 'textures/earth.jpg'},
-'a' : {'m' : 4.87e+24, 'r' : 1000, 'p' : [0,12000,0], 'v' : [0,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
-'b' : {'m' : 4.87e+24, 'r' : 1000, 'p' : [3000,0,10000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
-'c' : {'m' : 4.87e+24, 'r' : 1000, 'p' : [0,-10000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
-'d' : {'m' : 4.87e+24, 'r' : 1000, 'p' : [0,0,10000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
-'e' : {'m' : 4.87e+24, 'r' : 1000, 'p' : [-11000,0,5000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
-'f' : {'m' : 4.87e+24, 'r' : 1000, 'p' : [0,20000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
-'g' : {'m' : 4.87e+24, 'r' : 1000, 'p' : [10000,10000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'}
+'oa' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,12000,0], 'v' : [0,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
+'ob' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [3000,0,10000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
+'oc' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,-10000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
+'od' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,0,10000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
+'oe' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [-11000,0,5000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
+'of' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,20000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
+'og' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [10000,10000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'}
 },
 'time' : 10
 }}
