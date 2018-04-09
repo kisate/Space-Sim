@@ -10,6 +10,7 @@ class Body :
 		self.node = node
 		self.rbnode = rbnode
 		self.radius = r
+		self.realRadius = r
 		self.name = name
 		
 		self.wayPoints = []

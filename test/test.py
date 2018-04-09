@@ -673,19 +673,25 @@ class Test(ShowBase) :
 		parent1 = NodePath(node1).parent
 		parent2 = NodePath(node2).parent
 		
-		body1 = next(x for x in self.bodies if x.name == node2.getName()[:-2])
+		body1 = next(x for x in self.bodies if x.name == node1.getName()[:-2])
 		
 		rbnode1 = parent1.node()
 		rbnode2 = parent2.node()
 		
-		
 		if rbnode1.getMass() > rbnode2.getMass() : 
 			rbnode2.setLinearFactor(Vec3(0, 0, 0))
 			rbnode2.setLinearVelocity(parent2.node().getLinearVelocity()*0.01)
-			mass = (rbnode1.getMass() + rbnode2.getMass())
-			density = rbnode1.getMass()/body1.radius
+			mass = (rbnode1.getMass() + rbnode2.getMass())*0.4
+			density = rbnode1.getMass()/body1.realRadius
 			radius = mass/density
-			self.taskMgr.add(self.growingTask, 'Grow{}'.format(self.counter), extraArgs=[parent1.find("**/planet_sphere.egg"), radius], appendTask = True)
+
+			body1.realRadius = radius
+
+			step = 1e-3
+
+			self.taskMgr.add(self.growingTask, 'Grow{}'.format(self.counter), extraArgs=[body1, step], appendTask = True)
+
+			self.world.removeGhost(node2)
 		#log.debug(NodePath(node1).getCollideMask())
 		
 		#NodePath(node1).setCollideMask(BitMask32.bit(1))
@@ -710,19 +716,24 @@ class Test(ShowBase) :
 		
 		body1.collidesWith.append(node2)
 	
-	def growingTask(self, model, max, task) :
+	def growingTask(self, body, step, task) :
 	
-		scale = model.getScale()
-		new = scale*(1 + t/2000)
-		model.setScale(new)
-		log.info(max)
-		if (new >= max) :
+		scale = body.model.getScale()
+
+		new = min(scale[0]*(1+t*step), body.realRadius) if body.radius <= body.realRadius else max(scale[0]*(1-t*step), body.realRadius)
+		
+		body.model.setScale(new)
+		body.radius = new
+
+		log.debug("{} {}".format(body.radius, body.realRadius))
+
+		if (new >= body.realRadius) :
 			return Task.done
 		return Task.cont
 	
 	def onContactDestroyed(self, node1, node2):
 		
-		body1 = next(x for x in self.bodies if x.name == node2.getName()[:-2])
+		body1 = next(x for x in self.bodies if x.name == node1.getName()[:-2])
 		
 		body1.collidesWith.remove(node2)
 		
