@@ -534,7 +534,7 @@ class Test(ShowBase) :
 		for b in self.bodies :
 			b.model.setScale(b.model.getScale()[0]*factor)
 
-		self.cameraNode.setScale(1)
+		self.cameraNode.setScale(b.model.getScale()[0])
 		camera.setPos(render, pos)
 
 		
@@ -551,7 +551,7 @@ class Test(ShowBase) :
 			self.scaleText.setText('scale : {0} [Z/X]'.format(scale))
 			
 			
-			self.cameraNode.setScale(1)
+			self.cameraNode.setScale(b.model.getScale()[0])
 			camera.setPos(render, pos)
 
 
@@ -614,6 +614,7 @@ class Test(ShowBase) :
 	def logSomething(self):
 		for o in self.bodies :
 			log.info(o.rbnode.getInertia())
+
 	def debugFunction(self):		
 	
 		base = render.attachNewNode('base')
@@ -674,24 +675,27 @@ class Test(ShowBase) :
 		parent2 = NodePath(node2).parent
 		
 		body1 = next(x for x in self.bodies if x.name == node1.getName()[:-2])
-		
+		body2 = next(x for x in self.bodies if x.name == node2.getName()[:-2])
+
 		rbnode1 = parent1.node()
 		rbnode2 = parent2.node()
 		
 		if rbnode1.getMass() > rbnode2.getMass() : 
-			rbnode2.setLinearFactor(Vec3(0, 0, 0))
-			rbnode2.setLinearVelocity(parent2.node().getLinearVelocity()*0.01)
-			mass = (rbnode1.getMass() + rbnode2.getMass())*0.4
-			density = rbnode1.getMass()/body1.realRadius
-			radius = mass/density
+			rbnode2.setLinearFactor(Vec3(1, 1, 1))
+			rbnode2.setLinearVelocity(parent2.node().getLinearVelocity()*0)
+			mass = (rbnode1.getMass() - rbnode2.getMass()*0.001)
+			density = rbnode1.getMass()/body1.radius
+			body1.realRadius = mass/density
+			step = 0.001
 
-			body1.realRadius = radius
-
-			step = 1e-3
-
-			self.taskMgr.add(self.growingTask, 'Grow{}'.format(self.counter), extraArgs=[body1, step], appendTask = True)
+			#parent2.reparentTo(parent1)
 
 			self.world.removeGhost(node2)
+
+			body2.dead = True
+
+			self.taskMgr.add(self.growingTask, 'Grow{}'.format(self.counter), extraArgs=[body1, step], appendTask = True)
+			
 		#log.debug(NodePath(node1).getCollideMask())
 		
 		#NodePath(node1).setCollideMask(BitMask32.bit(1))
@@ -718,27 +722,52 @@ class Test(ShowBase) :
 	
 	def growingTask(self, body, step, task) :
 	
-		scale = body.model.getScale()
-
-		new = min(scale[0]*(1+t*step), body.realRadius) if body.radius <= body.realRadius else max(scale[0]*(1-t*step), body.realRadius)
+		scale = body.radius
 		
-		body.model.setScale(new)
+		new = min(scale*(1 + step*t), body.realRadius) if body.realRadius >= body.radius else max(scale*(1 - step*t), body.realRadius)
+
 		body.radius = new
+		body.model.setScale(new)
+		body.ghost.removeShape(body.ghost.getShape(0))
+		body.ghost.addShape(BulletSphereShape(new))
+		if NodePath(body.rbnode) == self.cameraNode.parent : self.cameraNode.setScale(new)
 
-		log.debug("{} {}".format(body.radius, body.realRadius))
-
-		if (new >= body.realRadius) :
+		if (new == body.realRadius) :
 			return Task.done
 		return Task.cont
 	
 	def onContactDestroyed(self, node1, node2):
 		
 		body1 = next(x for x in self.bodies if x.name == node1.getName()[:-2])
+		body2 = next(x for x in self.bodies if x.name == node2.getName()[:-2])
 		
 		body1.collidesWith.remove(node2)
-		
+
+		if body2.dead : 
+			self.world.removeRigidBody(body2.rbnode)
+			#self.world.removeGhost(body2.ghost)
+			NodePath(body2.rbnode).wrtReparentTo(body1.node)
+			body2.rbnode.setLinearFactor(Vec3(0,0,0))
+			body2.rbnode.setLinearVelocity(Vec3(0,0,0))
+			self.bodies.remove(body2)
+			if body2 in self.pullers : self.pullers.remove(body2)
+				
+			self.taskMgr.add(self.absorbingTask, 'Abs{}'.format(self.counter), extraArgs=[body2, body1])
+
 		return		
 	
+	def absorbingTask(self, obj, absorber) :
+		#TODO:reparent not model but rbnode
+		
+		if (obj.node.getDistance(absorber.node) < absorber.realRadius - obj.realRadius) :
+			
+			#log.debug("{} {}".format(obj.node.getDistance(absorber.node), absorber.realRadius - obj.realRadius))
+			obj.node.removeNode()
+			return Task.done
+
+		obj.node.setPos(obj.node.getPos()*0.999)
+		return Task.cont
+
 	def addCollision(self, node1, node2):
 		
 		log.debug(node1.getName())
@@ -747,8 +776,6 @@ class Test(ShowBase) :
 		
 		base = model.attachNewNode('base')
 		base.lookAt(node2)
-		
-		
 		
 		proj = render.attachNewNode(LensNode('proj'))
 		lens = PerspectiveLens()
@@ -787,6 +814,9 @@ class Test(ShowBase) :
 
 		self.taskMgr.add(self.expandingTask, 'Exp{}'.format(self.counter), extraArgs=[proj, 40, ts2, model], appendTask = True)
 	
+	
+	#def 
+
 	def expandingTask(self, proj, max, ts, node, task) :
 	
 		lens = proj.node().getLens()

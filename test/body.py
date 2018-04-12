@@ -9,6 +9,7 @@ class Body :
 		self.model = model
 		self.node = node
 		self.rbnode = rbnode
+		self.ghost = ghost
 		self.radius = r
 		self.realRadius = r
 		self.name = name
@@ -17,6 +18,8 @@ class Body :
 		self.collidesWith = []
 		self.trlClr = trlClr
 		self.setTemperature(t)
+		self.dead = False
+		
 	
 	def setTemperature(self, t):
 		self.temperature = t
