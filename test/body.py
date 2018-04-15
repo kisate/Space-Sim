@@ -5,7 +5,7 @@ import importPanda
 
 from panda3d.core import Geom, Vec4, Material
 class Body :
-	def __init__ (self, model, node, rbnode, ghost, r, name, trlClr = (1, 1, 1, 1), t = 0):
+	def __init__ (self, model, node, rbnode, ghost, r, name, trlClr = (1, 1, 1, 1), t = 0, isCooling = False):
 		self.model = model
 		self.node = node
 		self.rbnode = rbnode
@@ -13,7 +13,8 @@ class Body :
 		self.radius = r
 		self.realRadius = r
 		self.name = name
-		
+		self.isCooling = isCooling
+
 		self.wayPoints = []
 		self.collidesWith = []
 		self.trlClr = trlClr

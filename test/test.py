@@ -128,7 +128,7 @@ class Test(ShowBase) :
 		
 		self.initText()
 
-		self.counters = [0]
+		self.counters = {"Expanding" : 0, "Growing" : 0, "Absorbing" : 0, "Misc" : 0}
 		
 		self.gNode = GeomNode("Trails")
 		NodePath(self.gNode).reparentTo(render)
@@ -209,6 +209,9 @@ class Test(ShowBase) :
 				if o2 != o :
 					imp = getImpulse(o2, o)
 					o.rbnode.applyCentralImpulse(imp)
+			if o.isCooling :
+				if o.temperature <= 500 : o.isCooling = False
+				else : o.setTemperature(o.temperature*(1-0.001*t))
 		#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		
 		
@@ -600,8 +603,12 @@ class Test(ShowBase) :
 		NodePath(ghost).node().notifyCollisions(True)
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
-		
-		body = Body(model, node, rbnode, ghost, r, name, trlClr, temperature)
+
+		isCooling = False
+
+		if temperature > 7000 : isCooling = True
+ 		
+		body = Body(model, node, rbnode, ghost, r, name, trlClr, temperature, isCooling=isCooling)
 		
 		if mass >= self.minMass :
 			self.pullers.append(body)
@@ -616,49 +623,8 @@ class Test(ShowBase) :
 			log.info(o.rbnode.getInertia())
 
 	def debugFunction(self):		
-	
-		base = render.attachNewNode('base')
-		base.reparentTo(self.bodies[0].model)
-		
-		base.lookAt(camera)
-		
-		proj = render.attachNewNode(LensNode('proj'))
-		lens = PerspectiveLens()
-		lens.setFov(5)
-		self.lens = lens
-		proj.node().setLens(lens)
-		proj.node().showFrustum()
-		proj.find('frustum').setColor(1, 0, 0, 1)
-		proj.reparentTo(base)
-		proj.setPos(0,-1,0)
-		
-		# tex = loader.loadTexture('textures/tex6.png')
-		# tex.setWrapU(Texture.WMBorderColor)
-		# tex.setWrapV(Texture.WMBorderColor)
-		# tex.setBorderColor(VBase4(1, 1, 1, 0))
-		
-		tex2 = loader.loadTexture('textures/tex7.png')
-		tex2.setWrapU(Texture.WMBorderColor)
-		tex2.setWrapV(Texture.WMBorderColor)
-		tex2.setBorderColor(VBase4(1, 1, 1, 0))
-		
-		# ts = TextureStage('colts{}1'.format(self.counter))
-		# #ts.setSort(1)
-		# ts.setMode(TextureStage.MGlow)
-		
-		ts2 = TextureStage('colts{}2'.format(self.counter))
-		#ts2.setSort(1)
-		ts2.setMode(TextureStage.MDecal)
-		
-		self.counters[0]+=1
-		
-		#self.model.projectTexture(self.ts, tex, proj)
-		self.bodies[0].model.projectTexture(ts2, tex2, proj)
-		
-		log.info(self.bodies[0].model.getChildren())
-		
-		
 		log.info('debug1')
+
 	def debugFunction2(self):
 
 		s = Vec3(0,0,0)
@@ -694,7 +660,8 @@ class Test(ShowBase) :
 
 			body2.dead = True
 
-			self.taskMgr.add(self.growingTask, 'Grow{}'.format(self.counter), extraArgs=[body1, step], appendTask = True)
+			self.taskMgr.add(self.growingTask, 'Grow{}'.format(self.counters["Growing"]), extraArgs=[body1, step], appendTask = True)
+			self.counters["Growing"] += 1
 			
 		#log.debug(NodePath(node1).getCollideMask())
 		
@@ -752,7 +719,8 @@ class Test(ShowBase) :
 			self.bodies.remove(body2)
 			if body2 in self.pullers : self.pullers.remove(body2)
 				
-			self.taskMgr.add(self.absorbingTask, 'Abs{}'.format(self.counter), extraArgs=[body2, body1])
+			self.taskMgr.add(self.absorbingTask, 'Abs{}'.format(self.counters["Absorbing"]), extraArgs=[body2, body1])
+			self.counters["Absorbing"] += 1
 
 		return		
 	
@@ -773,7 +741,7 @@ class Test(ShowBase) :
 		log.debug(node1.getName())
 		
 		model = node1.find("**/planet_sphere.egg")
-		
+
 		base = model.attachNewNode('base')
 		base.lookAt(node2)
 		
@@ -801,18 +769,20 @@ class Test(ShowBase) :
 		# #ts.setSort(1)
 		# ts.setMode(TextureStage.MGlow)
 		
-		ts2 = TextureStage('colts{}2'.format(self.counter))
-		#ts2.setSort(1)
-		ts2.setMode(TextureStage.MDecal)
 		
-		self.counters[0]+=1
+		ts = TextureStage('ts_{}'.format(self.counters["Expanding"]))
+		ts.setSort(1)
+		ts.setMode(TextureStage.MDecal)
+		
 		
 		log.debug('projected')
 		
 		#self.model.projectTexture(self.ts, tex, proj)
-		model.projectTexture(ts2, tex2, proj)
+		model.projectTexture(ts, tex2, proj)
 
-		self.taskMgr.add(self.expandingTask, 'Exp{}'.format(self.counter), extraArgs=[proj, 40, ts2, model], appendTask = True)
+		self.taskMgr.add(self.expandingTask, 'Exp{}'.format(self.counters["Expanding"]), extraArgs=[proj, 40, ts, model], appendTask = True)
+
+		self.counters["Expanding"]+=1
 	
 	
 	#def 

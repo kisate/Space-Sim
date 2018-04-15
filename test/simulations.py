@@ -26,14 +26,14 @@ simulations = {
 },
 'sim3' : {
 'objects' : {
-'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [1,0,0], 'av' : [0,0,2*pi/60], 'temperature' : 6500, 'texture' : 'textures/earth.jpg'}
+'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [1,0,0], 'av' : [0,0,2*pi/60], 'temperature' : 8000, 'texture' : 'textures/sun.jpg'}
 },
 'time' : 1
 },
 'sim4' : {
 'objects' : {
 'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [1,0,0], 'av' : [0,0,2*pi/10000], 'temperature' : 6500, 'texture' : 'textures/moon.jpg'},
-'oa' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,12000,0], 'v' : [0,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
+'oa' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,12000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
 'ob' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [3000,0,10000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
 'oc' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,-10000,0], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
 'od' : {'m' : 4.87e+10, 'r' : 1000, 'p' : [0,0,10000], 'v' : [1,0,0], 'av' : [0,0,0], 'temperature' : 100, 'texture' : 'textures/earth.jpg'},
