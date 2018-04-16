@@ -209,9 +209,9 @@ class Test(ShowBase) :
 				if o2 != o :
 					imp = getImpulse(o2, o)
 					o.rbnode.applyCentralImpulse(imp)
-			if o.isCooling :
-				if o.temperature <= 500 : o.isCooling = False
-				else : o.setTemperature(o.temperature*(1-0.001*t))
+
+			self.processTemperature(o)
+			
 		#self.bodies[0].setTemperature(self.bodies[0].temperature*1.005)
 		
 		
@@ -227,7 +227,39 @@ class Test(ShowBase) :
 		self.draw()
 		
 		return Task.cont
+	
+	def processTemperature(self, body):
+
+		if body.temperature < body.shiningTemp : 
+			body.isCooling = False
+			
+			if body.isShining : 
+				body.isShining = False
+				render.clearLight(NodePath(body.light))
+				self.lights.remove(body.light)
+
+		elif not body.isShining : 
+			body.isShining = True
+			render.setLight(NodePath(body.light))
+			self.lights.append(body.light)
 		
+		if body.isCooling : body.setTemperature(body.temperature*(1-0.001*t))
+
+		if len(self.lights) == 0 and not self.hasFarLight : self.addFarLight()
+		if len(self.lights) > 0 and self.hasFarLight : self.removeFarLight()
+		
+	def addFarLight(self) :
+		self.farLight = PointLight('far_light')
+		self.farLight.setColor(VBase4( 3, 3, 3, 1))
+		lnp = render.attachNewNode(self.farLight)
+		lnp.setPos(1e5, 0, 0)
+		render.setLight(NodePath(self.farLight))
+		self.hasFarLight = True
+
+	def removeFarLight(self) : 
+		render.clearLight(NodePath(self.farLight))
+		self.hasFarLight = False
+	
 	def controllTask(self, task) :
 	
 		d = camera.getDistance(self.cameraNode.parent)
@@ -309,6 +341,7 @@ class Test(ShowBase) :
 		
 		self.world.setGroupCollisionFlag(1, 1, False)
 		
+		self.lights = []
 		
 		for x in simulation['objects'].keys() :
 			self.addPlanet(x, simulation)		
@@ -317,11 +350,11 @@ class Test(ShowBase) :
 		log.info("Loaded models")
 		
 	def setUpLights(self) : 
-		plight = PointLight('plight')
-		plight.setColor(VBase4( 3, 3, 3, 1))
-		plnp = render.attachNewNode(plight)
-		plnp.reparentTo(self.bodies[0].model)
-		render.setLight(plnp)
+		
+		self.hasFarLight = False
+
+		if len(self.lights) == 0 :
+			self.addFarLight()
 
 		# Important! Enable the shader generator.
 		render.setShaderAuto()
@@ -608,7 +641,24 @@ class Test(ShowBase) :
 
 		if temperature > 7000 : isCooling = True
  		
+
 		body = Body(model, node, rbnode, ghost, r, name, trlClr, temperature, isCooling=isCooling)
+
+
+		light = PointLight('light_' + name)
+		light.setColor(VBase4( 3, 3, 3, 1))
+		lnp = render.attachNewNode(light)
+		lnp.reparentTo(node)
+		
+		body.light = light
+
+		if temperature >= body.shiningTemp : 
+
+			body.isShining = True
+			
+			render.setLight(lnp)
+			self.lights.append(light)
+
 		
 		if mass >= self.minMass :
 			self.pullers.append(body)

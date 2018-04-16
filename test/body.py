@@ -5,6 +5,9 @@ import importPanda
 
 from panda3d.core import Geom, Vec4, Material
 class Body :
+
+	shiningTemp = 500
+
 	def __init__ (self, model, node, rbnode, ghost, r, name, trlClr = (1, 1, 1, 1), t = 0, isCooling = False):
 		self.model = model
 		self.node = node
@@ -20,12 +23,14 @@ class Body :
 		self.trlClr = trlClr
 		self.setTemperature(t)
 		self.dead = False
+		self.isShining = False
+		self.light = None
 		
 	
 	def setTemperature(self, t):
 		self.temperature = t
 		
-		if t >= 500 :
+		if t >= self.shiningTemp :
 			c = self.getColor()
 			m = Material()
 			m.setEmission(c)
