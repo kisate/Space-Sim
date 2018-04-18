@@ -371,7 +371,7 @@ class Test(ShowBase) :
 		
 	def setUpKeys(self) :
 	
-		self.keys = {'zoomIn' : 0, 'zoomOut' : 0, 'fwd' : 0, 'bwd' : 0, 'lft' : 0, 'rt' : 0, 'incSpeed' : 0, 'decSpeed' : 0}
+		self.keys = {'zoomIn' : 0, 'zoomOut' : 0, 'fwd' : 0, 'bwd' : 0, 'lft' : 0, 'rt' : 0, 'incSpeed' : 0, 'decSpeed' : 0, 'running' : 1}
 		self.accept("escape", sys.exit)
 		self.accept("z", self.incScale)
 		self.accept("x", self.decScale)
@@ -381,6 +381,7 @@ class Test(ShowBase) :
 		self.accept('u', self.logSomething)
 		self.accept('1', self.debugFunction)
 		self.accept('2', self.debugFunction2)
+		self.accept('space', self.toggleSim)
 
 		self.accept('arrow_up', self.setKey, ['zoomIn', 1])
 		self.accept('arrow_up-up', self.setKey, ['zoomIn', 0])
@@ -449,7 +450,35 @@ class Test(ShowBase) :
 			self.cameraNode.setPos(0,0,0)
 		
 			self.cameraNode.setScale(body.radius)
-		
+	
+	def toggleSim(self) :
+		self.keys['running']*=-1
+
+		if self.keys['running'] == 1 : 
+			self.taskMgr.add(self.physTask, 'PhysTask')
+			for task in self.data:
+				if task['name'][:3] == "Abs" :
+					self.taskMgr.add(self.absorbingTask, task['name'], extraArgs=[task['obj'], task['absorber']], appendTask=True)
+				elif task['name'][:3] == "Exp" : 
+					self.taskMgr.add(self.expandingTask, task['name'], extraArgs=[task['proj'], task['max'], task['ts'], task['node']], appendTask = True)
+				elif task['name'][:4] == "Grow" :
+					self.taskMgr.add(self.growingTask, task['name'], extraArgs=[task['body'], task['step']], appendTask = True)
+		else : 
+			taskMgr.remove('PhysTask')
+			tasks = taskMgr.getTasks()
+			self.data = []
+			for task in tasks:
+				
+				if task.name[:3] == "Abs" :
+					self.data.append({'name' : task.name, 'obj' : task.obj, 'absorber' : task.absorber})
+					taskMgr.remove(task.name)
+				elif task.name[:3] == "Exp" :
+					self.data.append({'name' : task.name, 'proj' : task.proj, 'max' : task.max, 'ts' : task.ts, 'node' : task.node})
+					taskMgr.remove(task.name)
+				elif task.name[:4] == "Grow" :
+					self.data.append({'name' : task.name, 'body' : task.body, 'step' : task.step})
+					taskMgr.remove(task.name)
+	
 	def logCamera(self):
 		log.info('camera')
 		log.info(camera.getPos())
@@ -738,7 +767,10 @@ class Test(ShowBase) :
 		body1.collidesWith.append(node2)
 	
 	def growingTask(self, body, step, task) :
-	
+		
+		task.body = body
+		task.step = step
+
 		scale = body.radius
 		
 		new = min(scale*(1 + step*t), body.realRadius) if body.realRadius >= body.radius else max(scale*(1 - step*t), body.realRadius)
@@ -769,14 +801,17 @@ class Test(ShowBase) :
 			self.bodies.remove(body2)
 			if body2 in self.pullers : self.pullers.remove(body2)
 				
-			self.taskMgr.add(self.absorbingTask, 'Abs{}'.format(self.counters["Absorbing"]), extraArgs=[body2, body1])
+			self.taskMgr.add(self.absorbingTask, 'Abs{}'.format(self.counters["Absorbing"]), extraArgs=[body2, body1], appendTask=True)
 			self.counters["Absorbing"] += 1
 
 		return		
 	
-	def absorbingTask(self, obj, absorber) :
+	def absorbingTask(self, obj, absorber, task) :
 		#TODO:reparent not model but rbnode
 		
+		task.obj = obj
+		task.absorber = absorber
+
 		if (obj.node.getDistance(absorber.node) < absorber.realRadius - obj.realRadius) :
 			
 			#log.debug("{} {}".format(obj.node.getDistance(absorber.node), absorber.realRadius - obj.realRadius))
@@ -838,7 +873,12 @@ class Test(ShowBase) :
 	#def 
 
 	def expandingTask(self, proj, max, ts, node, task) :
-	
+		
+		task.proj = proj
+		task.max = max
+		task.ts = ts
+		task.node = node
+
 		lens = proj.node().getLens()
 		lens.setFov(lens.getFov() * (1+t/2000))
 		if (lens.getFov() >= max) :
