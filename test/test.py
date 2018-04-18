@@ -485,7 +485,7 @@ class Test(ShowBase) :
 
 		self.lastMouseX, self.lastMouseY = None, None
 
-		taskMgr.add(self.mouseTask, "Mouse Task")
+		self.taskMgr.add(self.mouseTask, "Mouse Task")
 		self.scrolling = False
 		self.detached = False
 	

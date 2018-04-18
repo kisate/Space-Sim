@@ -27,7 +27,7 @@ simulations = {
 },
 'sim3' : {
 'objects' : {
-'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [1,0,0], 'av' : [0,0,2*pi/60], 'temperature' : 5800, 'texture' : 'textures/gstar.jpg'}
+'venus' : {'m' : 4.87e+24, 'r' : 6052, 'p' : [0,0,0], 'v' : [1,0,0], 'av' : [0,0,2*pi/60], 'temperature' : 8000, 'texture' : 'textures/gstar.jpg'}
 },
 'time' : 1
 },

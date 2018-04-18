@@ -6,7 +6,7 @@ import importPanda
 from panda3d.core import Geom, Vec4, Material
 class Body :
 
-	shiningTemp = 500
+	shiningTemp = 800
 
 	def __init__ (self, model, node, rbnode, ghost, r, name, trlClr = (1, 1, 1, 1), t = 0, isCooling = False):
 		self.model = model
