@@ -4,7 +4,7 @@ import pickle
 import random
 import sys
 from math import copysign, cos, pi, sin
-
+import time
 import numpy
 
 import importPanda
@@ -264,11 +264,17 @@ class Test(ShowBase) :
 	
 		d = camera.getDistance(self.cameraNode.parent)
 		
-		if self.keys['zoomIn'] :
-			camera.setY(min(camera.getY()*(1-self.zoomSpeed), -1.1))
-		if self.keys['zoomOut']:
+		if self.keys['zoomIn'] == 1:
+			camera.setY(min(camera.getY()*(1-self.zoomInSpeed), -1.1))
+			self.zoomInSpeed*=self.zoomSpeedFactor
+		else : self.zoomInSpeed = 0.03
+		if self.keys['zoomOut'] == 1:
 			
-			camera.setY(camera.getY()*(1+self.zoomSpeed))
+			camera.setY(camera.getY()*(1+self.zoomOutSpeed))
+			self.zoomOutSpeed*=self.zoomSpeedFactor
+			
+		else : self.zoomOutSpeed = 0.03
+		
 		parent = self.cameraNode.getParent()
 		
 		if self.keys['fwd'] == 1:
@@ -413,7 +419,9 @@ class Test(ShowBase) :
 		self.lftStep = 0.1
 		self.rtStep = 0.1
 		
-		self.zoomSpeed = 0.03
+		self.zoomInSpeed = 0.03
+		self.zoomOutSpeed = 0.03
+		self.zoomSpeedFactor = 1.2
 		self.setUpMouse()
 		
 
@@ -566,6 +574,7 @@ class Test(ShowBase) :
 	def draw(self):
 		
 		lines = LineSegs()
+		lines.setThickness(2.0)
 		
 		NodePath(self.gNode).detachNode()
 		
@@ -663,6 +672,8 @@ class Test(ShowBase) :
 		
 		node.setPos(*pos)
 		NodePath(ghost).node().notifyCollisions(True)
+		
+		
 		
 		trlClr = (random.random(), random.random(), random.random(), 1.0)
 
